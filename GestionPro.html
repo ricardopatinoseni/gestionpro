@@ -227,6 +227,7 @@ function buildHdr(){
     <div style="display:flex;gap:6px;align-items:center">
       <span style="font-size:11px;color:${C.muted};display:none" class="usr-label">${CU?.email||""}</span>
       ${bx("⬇ Backup",C.green,"exportar()","font-size:11px;padding:5px 10px")}
+      <label style="background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600">⬆ Importar<input type="file" accept=".json" style="display:none" onchange="importarDatos(this)"></label>
       <button onclick="logout()" style="background:${C.red};color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600">⏻ Salir</button>
       <button onclick="ST.menu=!ST.menu;R()" style="background:transparent;border:none;color:#f1f5f9;font-size:22px;cursor:pointer">☰</button>
     </div>
@@ -698,7 +699,31 @@ function rRO(V){const cats=[...new Set(DB.productos.map(p=>p.categoria).filter(B
 function rFP(V){const m={};V.forEach(v=>{const f=v.fp;if(!m[f])m[f]={n:0,t:0};m[f].n++;m[f].t+=v.total;});const tot=V.reduce((a,v)=>a+v.total,0);const cols=[C.green,C.acc,C.yel,C.blue,C.red];const cards=Object.entries(m).sort((a,b)=>b[1].t-a[1].t).map(([f,d],i)=>{const p=tot>0?((d.t/tot)*100).toFixed(1):0;return`<div class="stat-card" style="border-left-color:${cols[i%5]}"><div class="stat-lbl" style="text-transform:capitalize">${f}</div><div class="stat-val" style="color:${cols[i%5]}">${fmt(d.t)}</div><div style="font-size:11px;color:${C.muted}">${d.n} fact. · ${p}%</div><div style="margin-top:6px;background:#334155;border-radius:4px;height:5px"><div style="width:${p}%;background:${cols[i%5]};height:5px;border-radius:4px"></div></div></div>`;}).join("");return`<div class="h2">💳 Ventas por Forma de Pago</div><div class="grid2">${cards||`<div class="card empty">Sin ventas</div>`}</div>`;}
 function rRC(V){const opts=DB.clientes.map(c=>`<option value="${h(c.nombre)}"${RCS===c.nombre?" selected":""}>${h(c.nombre)}</option>`).join("");let det="";if(RCS){const vC=V.filter(v=>v.cliente===RCS);const tC=vC.reduce((a,v)=>a+v.total,0),pC=vC.filter(v=>v.estado==="pendiente").reduce((a,v)=>a+v.saldo,0);const pm={};vC.forEach(v=>v.lineas?.forEach(l=>{const k=l.desc;pm[k]=(pm[k]||0)+l.qty;}));det=`<div class="grid2" style="margin-bottom:14px">${sc("Total Comprado",fmt(tC),C.green)}${sc("Saldo Pendiente",fmt(pC),pC>0?C.red:C.green)}${sc("Facturas",vC.length,C.acc)}${sc("Ticket Prom.",vC.length?fmt(tC/vC.length):"$0.00",C.yel)}</div><div class="grid2"><div class="card"><div class="h2">Historial</div><div class="ov"><table><thead><tr><th>#</th><th>Fecha</th><th>Total</th><th>Estado</th></tr></thead><tbody>${[...vC].reverse().map(v=>`<tr><td style="font-size:11px;color:${C.muted}">#${v.id.slice(-6).toUpperCase()}</td><td>${v.fecha}</td><td style="color:${C.green};font-weight:600">${fmt(v.total)}</td><td>${bdg(v.estado,v.estado==="pagado"?C.green:C.yel)}</td></tr>`).join("")||`<tr><td colspan="4" class="empty">Sin facturas</td></tr>`}</tbody></table></div></div><div class="card"><div class="h2">Productos Favoritos</div>${Object.entries(pm).sort((a,b)=>b[1]-a[1]).map(([n,q],i)=>`<div style="display:flex;justify-content:space-between;margin-bottom:7px;align-items:center"><div style="display:flex;gap:8px;align-items:center"><span class="badge" style="background:${C.acc}22;color:${C.acc}">${i+1}</span><span>${h(n)}</span></div><b style="color:${C.acc2}">${q} uds.</b></div>`).join("")||`<div style="color:${C.muted}">Sin datos</div>`}</div></div>`;}return`<div class="h2">👤 Reporte por Cliente</div><div style="margin-bottom:14px"><label class="lbl">Cliente</label><select onchange="RCS=this.value;R()" style="max-width:300px"><option value="">-- Seleccionar --</option>${opts}<option value="Consumidor Final"${RCS==="Consumidor Final"?" selected":""}>Consumidor Final</option></select></div>${det}`;}
 
-// Exponer funciones globalmente
+async function importarDatos(input){
+  const file=input.files[0];if(!file)return;
+  if(!confirm("¿Importar datos? Esto agregará todos los registros del archivo a Firebase."))return;
+  const reader=new FileReader();
+  reader.onload=async ev=>{
+    try{
+      const backup=JSON.parse(ev.target.result);
+      let total=0;
+      for(const col of["productos","clientes","proveedores","ventas","compras"]){
+        if(backup[col]&&Array.isArray(backup[col])){
+          for(const item of backup[col]){
+            if(item.id){await fsGuardar(col,item.id,item);total++;}
+          }
+        }
+      }
+      await cargarTodo();
+      await logAct("IMPORTAR DATOS",`${total} registros importados`);
+      alert(`✅ ${total} registros importados correctamente.`);
+      R();
+    }catch(e){alert("❌ Error al importar. Verifica que sea un backup válido de GestiónPro.");}
+  };
+  reader.readAsText(file);
+  input.value="";
+}
+window.importarDatos=importarDatos;
 window.login=login;window.logout=logout;window.exportar=exportar;
 window.goTab=goTab;window.R=R;window.cargarLogs=cargarLogs;
 window.invSave=invSave;window.invCancel=invCancel;window.invEd=invEd;window.invDel=invDel;window.imgProcess=imgProcess;
