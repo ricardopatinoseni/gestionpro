@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>GestiónPro</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0f172a;color:#f1f5f9;font-family:Inter,system-ui,sans-serif;font-size:14px}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:#334155;border-radius:3px}
+.hdr{background:#1e293b;border-bottom:1px solid #334155;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.logo{font-weight:700;font-size:15px;color:#818cf8;letter-spacing:1px}
+.content{padding:14px;max-width:1100px;margin:0 auto}
+.card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:14px;margin-bottom:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;align-items:flex-end;margin-bottom:8px}
+.h2{font-size:15px;font-weight:700;margin-bottom:10px}
+input,select{background:#0f172a;border:1px solid #334155;border-radius:6px;padding:7px 10px;color:#f1f5f9;font-size:13px;width:100%}
+input:focus,select:focus{outline:1px solid #6366f1}
+label.lbl{font-size:11px;color:#94a3b8;margin-bottom:4px;display:block}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:7px 10px;font-size:11px;color:#94a3b8;border-bottom:1px solid #334155}
+td{padding:7px 10px;font-size:13px;border-bottom:1px solid #334155;vertical-align:middle}
+.ov{overflow-x:auto}
+.stat-card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:14px;border-left-width:4px;border-left-style:solid}
+.stat-lbl{font-size:11px;color:#94a3b8;margin-bottom:4px}
+.stat-val{font-size:20px;font-weight:700}
+.menu-overlay{position:fixed;inset:0;background:#000000bb;z-index:200;display:flex;align-items:flex-start;justify-content:center}
+.menu-panel{background:#1e293b;width:100%;max-width:480px;border-radius:0 0 16px 16px;padding:16px;box-shadow:0 8px 32px #0008}
+.menu-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.menu-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:14px 8px;border-radius:12px;border:2px solid #334155;background:#0f172a;cursor:pointer;color:#94a3b8;font-family:inherit}
+.menu-btn.active{border-color:#6366f1;background:#6366f122;color:#818cf8}
+.menu-btn .ico{font-size:28px}
+.menu-btn .lbl2{font-size:11px;font-weight:600;text-align:center}
+.badge{padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.sub-tabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px}
+.empty{text-align:center;color:#94a3b8;padding:20px}
+.row-between{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.prog-bg{background:#334155;border-radius:6px;height:8px;margin-bottom:2px}
+.prog-fill{height:8px;border-radius:6px}
+.img-placeholder{width:40px;height:40px;border-radius:6px;border:1px solid #334155;display:flex;align-items:center;justify-content:center;font-size:18px}
+.img-preview{width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #334155}
+.img-box{width:80px;height:80px;border-radius:8px;border:2px dashed #334155;display:flex;align-items:center;justify-content:center;font-size:32px}
+.img-btn{color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:13px;font-weight:600;display:inline-block;text-align:center;margin-bottom:4px}
+.alert-banner{background:#f59e0b22;border:1px solid #f59e0b;border-radius:10px;padding:12px 16px;margin-bottom:14px}
+/* Login */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.login-card{background:#1e293b;border:1px solid #334155;border-radius:16px;padding:32px;width:100%;max-width:380px}
+.login-logo{font-size:24px;font-weight:700;color:#818cf8;text-align:center;margin-bottom:8px}
+.login-sub{font-size:13px;color:#94a3b8;text-align:center;margin-bottom:24px}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid #ffffff44;border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.log-item{padding:8px 10px;border-bottom:1px solid #334155;font-size:12px}
+.log-item:last-child{border-bottom:none}
+</style>
+</head>
+<body>
+<div id="app"><div class="login-wrap"><div class="login-card"><div class="login-logo">⚡ GestiónPro</div><div class="login-sub">Cargando...</div></div></div></div>
+
+<!-- Firebase SDKs -->
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import{getFirestore,collection,doc,getDoc,getDocs,setDoc,addDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy,limit,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig={
+  apiKey:"AIzaSyC6nEnCDkqmPQwXeL9ED1wVJfH1ka05iSA",
+  authDomain:"gestionpro-erp.firebaseapp.com",
+  projectId:"gestionpro-erp",
+  storageBucket:"gestionpro-erp.firebasestorage.app",
+  messagingSenderId:"454230291432",
+  appId:"1:454230291432:web:5767a9217169b5e0392a5d"
+};
+
+const app=initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const db=getFirestore(app);
+
+// ── Colores y utilidades ─────────────────────────────────
+const C={bg:"#0f172a",card:"#1e293b",brd:"#334155",acc:"#6366f1",acc2:"#818cf8",txt:"#f1f5f9",muted:"#94a3b8",green:"#22c55e",red:"#ef4444",yel:"#f59e0b",blue:"#38bdf8"};
+const fmt=n=>`$${Number(n).toFixed(2)}`;
+const tod=()=>new Date().toISOString().split("T")[0];
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const h=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+const sc=(l,v,c)=>`<div class="stat-card" style="border-left-color:${c}"><div class="stat-lbl">${l}</div><div class="stat-val" style="color:${c}">${v}</div></div>`;
+const bx=(l,c,fn,ex="")=>`<button onclick="${fn}" style="background:${c};color:#fff;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:13px;font-weight:600;${ex}">${l}</button>`;
+const bdg=(t,c)=>`<span class="badge" style="background:${c}22;color:${c}">${h(String(t))}</span>`;
+function defDesde(){const d=new Date();d.setDate(1);return d.toISOString().split("T")[0];}
+
+// ── Estado ───────────────────────────────────────────────
+let CU=null; // usuario actual
+let ST={tab:"Dashboard",menu:false,sub:"dv",rD:defDesde(),rH:tod(),cxcIdx:-1,cxpIdx:-1,roLinea:""};
+let DB={productos:[],clientes:[],proveedores:[],ventas:[],compras:[]};
+let VF={fecha:tod(),cliente:"",fp:"contado",vence:"",lns:[newLV()]};
+let CF={fecha:tod(),proveedor:"",fp:"contado",vence:"",lns:[newLC()]};
+let IF={nombre:"",sku:"",categoria:"",unidad:"unidad",precio:0,costo:0,stock:0,stockMin:5,imagen:""};
+let IEd=null;
+let EF={nombre:"",ruc:"",email:"",telefono:"",direccion:"",credito:0,contacto:"",saldoInicial:0,fechas:[{tipo:"Cumpleaños",fecha:""},{tipo:"Aniversario",fecha:""}]};
+let EEd=null;
+let VV="lista",VD=null,CV="lista",CD=null,RCS="";
+let PM={monto:0,forma:"transferencia"};
+let LOGS=[];
+
+function newLV(){return{id:uid(),pid:"",desc:"",qty:1,pu:0};}
+function newLC(){return{id:uid(),pid:"",desc:"",qty:1,costo:0};}
+
+// ── Log de actividades ───────────────────────────────────
+async function logAct(accion,detalle=""){
+  try{
+    await addDoc(collection(db,"logs"),{
+      usuario:CU?.email||"?",
+      accion,detalle,
+      fecha:tod(),
+      hora:new Date().toLocaleTimeString("es-EC"),
+      ts:serverTimestamp()
+    });
+  }catch(e){console.error("Log error",e);}
+}
+
+// ── Cargar logs recientes ────────────────────────────────
+async function cargarLogs(){
+  try{
+    const q=query(collection(db,"logs"),orderBy("ts","desc"),limit(50));
+    const snap=await getDocs(q);
+    LOGS=snap.docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){LOGS=[];}
+}
+
+// ── Firestore CRUD ───────────────────────────────────────
+async function fsGuardar(col,id,data){
+  await setDoc(doc(db,col,id),data);
+}
+async function fsEliminar(col,id){
+  await deleteDoc(doc(db,col,id));
+}
+async function fsCargar(col){
+  const snap=await getDocs(collection(db,col));
+  return snap.docs.map(d=>({id:d.id,...d.data()}));
+}
+
+// ── Cargar todos los datos ───────────────────────────────
+async function cargarTodo(){
+  const [productos,clientes,proveedores,ventas,compras]=await Promise.all([
+    fsCargar("productos"),fsCargar("clientes"),fsCargar("proveedores"),
+    fsCargar("ventas"),fsCargar("compras")
+  ]);
+  DB={productos,clientes,proveedores,ventas,compras};
+}
+
+// ── Auth ─────────────────────────────────────────────────
+onAuthStateChanged(auth,async user=>{
+  if(user){CU=user;await cargarTodo();R();}
+  else{CU=null;renderLogin();}
+});
+
+async function login(){
+  const email=document.getElementById("lemail").value.trim();
+  const pass=document.getElementById("lpass").value;
+  const btn=document.getElementById("lbtn");
+  const err=document.getElementById("lerr");
+  err.textContent="";
+  btn.innerHTML=`<span class="spin"></span>Ingresando...`;
+  btn.disabled=true;
+  try{
+    await signInWithEmailAndPassword(auth,email,pass);
+    await logAct("LOGIN","Inicio de sesión");
+  }catch(e){
+    err.textContent="Correo o contraseña incorrectos.";
+    btn.innerHTML="Ingresar";btn.disabled=false;
+  }
+}
+
+async function logout(){
+  await logAct("LOGOUT","Cierre de sesión");
+  await signOut(auth);
+}
+
+function renderLogin(){
+  document.getElementById("app").innerHTML=`
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="login-logo">⚡ GestiónPro</div>
+      <div class="login-sub">Sistema de Gestión Comercial</div>
+      <div style="margin-bottom:14px"><label class="lbl">Correo electrónico</label><input id="lemail" type="email" placeholder="usuario@correo.com" onkeydown="if(event.key==='Enter')login()"></div>
+      <div style="margin-bottom:20px"><label class="lbl">Contraseña</label><input id="lpass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')login()"></div>
+      <div id="lerr" style="color:${C.red};font-size:12px;margin-bottom:10px;text-align:center"></div>
+      <button id="lbtn" onclick="login()" style="width:100%;background:${C.acc};color:#fff;border:none;border-radius:8px;padding:12px;cursor:pointer;font-size:14px;font-weight:700">Ingresar</button>
+      <div style="margin-top:16px;font-size:11px;color:${C.muted};text-align:center">GestiónPro v5 · Datos en la nube</div>
+    </div>
+  </div>`;
+}
+
+// ── Exportar backup ──────────────────────────────────────
+function exportar(){
+  const b=new Blob([JSON.stringify(DB,null,2)],{type:"application/json"});
+  const u=URL.createObjectURL(b);
+  const a=document.createElement("a");a.href=u;a.download=`gestionpro_${tod()}.json`;a.click();
+  URL.revokeObjectURL(u);
+  logAct("BACKUP","Exportación de datos");
+}
+
+// ── Render ───────────────────────────────────────────────
+function R(){document.getElementById("app").innerHTML=buildAll();}
+
+function buildAll(){
+  return buildHdr()+
+    (ST.menu?buildMenu():"")+
+    `<div class="content">`+
+    buildAlarmas()+
+    (ST.tab==="Dashboard"?buildDash():"")+
+    (ST.tab==="Inventario"?buildInv():"")+
+    (ST.tab==="Clientes"?buildEnt("clientes"):"")+
+    (ST.tab==="Proveedores"?buildEnt("proveedores"):"")+
+    (ST.tab==="Ventas"?buildVentas():"")+
+    (ST.tab==="Compras"?buildCompras():"")+
+    (ST.tab==="CxC"?buildCxC():"")+
+    (ST.tab==="CxP"?buildCxP():"")+
+    (ST.tab==="Reportes"?buildRep():"")+
+    (ST.tab==="Actividad"?buildLog():"")+
+    `</div>`;
+}
+
+function buildHdr(){
+  return `<div class="hdr">
+    <div class="logo">⚡ GestiónPro</div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <span style="font-size:11px;color:${C.muted};display:none" class="usr-label">${CU?.email||""}</span>
+      ${bx("⬇ Backup",C.green,"exportar()","font-size:11px;padding:5px 10px")}
+      <button onclick="logout()" style="background:${C.red};color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600">⏻ Salir</button>
+      <button onclick="ST.menu=!ST.menu;R()" style="background:transparent;border:none;color:#f1f5f9;font-size:22px;cursor:pointer">☰</button>
+    </div>
+  </div>`;
+}
+
+const TABS=[{k:"Dashboard",i:"🏠"},{k:"Inventario",i:"📦"},{k:"Clientes",i:"👥"},{k:"Proveedores",i:"🏭"},{k:"Ventas",i:"🧾"},{k:"Compras",i:"🛒"},{k:"CxC",i:"💰"},{k:"CxP",i:"💳"},{k:"Reportes",i:"📊"},{k:"Actividad",i:"📋"}];
+
+function buildMenu(){
+  const btns=TABS.map(t=>`<button class="menu-btn${ST.tab===t.k?" active":""}" onclick="goTab('${t.k}')"><span class="ico">${t.i}</span><span class="lbl2">${t.k}</span></button>`).join("");
+  return `<div class="menu-overlay" onclick="ST.menu=false;R()"><div class="menu-panel" onclick="event.stopPropagation()">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div class="logo">⚡ GestiónPro</div>
+      <button onclick="ST.menu=false;R()" style="background:transparent;border:none;color:#f1f5f9;font-size:22px;cursor:pointer">✕</button>
+    </div>
+    <div style="font-size:11px;color:${C.muted};margin-bottom:12px;text-align:center">👤 ${CU?.email||""}</div>
+    <div class="menu-grid">${btns}</div>
+  </div></div>`;
+}
+
+function goTab(t){
+  ST.tab=t;ST.menu=false;ST.cxcIdx=-1;ST.cxpIdx=-1;
+  if(t==="Actividad"){cargarLogs().then(R);}else R();
+}
+
+// ── Alarmas ──────────────────────────────────────────────
+function checkAlarmas(){
+  const hoy=new Date();hoy.setHours(0,0,0,0);
+  const alertas=[];
+  DB.clientes.forEach(cli=>{
+    (cli.fechas||[]).forEach(f=>{
+      if(!f.fecha||!f.tipo)return;
+      const parts=f.fecha.split("-");
+      let mes,dia;
+      if(parts.length===2){mes=parseInt(parts[0]);dia=parseInt(parts[1]);}
+      else if(parts.length===3){mes=parseInt(parts[1]);dia=parseInt(parts[2]);}
+      else return;
+      if(isNaN(mes)||isNaN(dia))return;
+      const anio=hoy.getFullYear();
+      let fechaObj=new Date(anio,mes-1,dia);fechaObj.setHours(0,0,0,0);
+      if(fechaObj<hoy)fechaObj=new Date(anio+1,mes-1,dia);
+      const diff=Math.round((fechaObj-hoy)/86400000);
+      if(diff>=0&&diff<=7)alertas.push({cliente:cli.nombre,tipo:f.tipo,fecha:f.fecha,dias:diff});
+    });
+  });
+  return alertas;
+}
+
+function buildAlarmas(){
+  const alertas=checkAlarmas();
+  if(!alertas.length)return"";
+  const items=alertas.map(a=>`<div style="font-size:13px;margin-bottom:4px">🔔 <b>${h(a.cliente)}</b> — ${h(a.tipo)}: ${a.fecha} <span style="color:${C.yel};font-weight:700">${a.dias===0?"¡Hoy!":a.dias===1?"Mañana":`en ${a.dias} días`}</span></div>`).join("");
+  return`<div class="alert-banner"><div style="font-weight:700;color:${C.yel};margin-bottom:6px">⚠ Fechas Importantes Próximas</div>${items}</div>`;
+}
+
+// ── Dashboard ────────────────────────────────────────────
+function buildDash(){
+  const tv=DB.ventas.reduce((a,v)=>a+v.total,0);
+  const tc=DB.compras.reduce((a,c)=>a+c.total,0);
+  const cxcP=DB.ventas.filter(v=>v.estado==="pendiente");
+  const cxpP=DB.compras.filter(c=>c.estado==="pendiente");
+  const sb=DB.productos.filter(p=>p.stock<=p.stockMin);
+  const tu=DB.productos.reduce((a,p)=>a+p.stock,0);
+  const vs=DB.productos.reduce((a,p)=>a+(p.stock*p.costo),0);
+  const rv=[...DB.ventas].reverse().slice(0,5).map(v=>`<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px"><span style="color:${C.muted}">${v.fecha} · ${h(v.cliente)}</span><b style="color:${C.green}">${fmt(v.total)}</b></div>`).join("")||`<div style="color:${C.muted}">Sin ventas</div>`;
+  const rc=cxcP.map(v=>`<tr><td>${h(v.cliente)}</td><td>${fmt(v.total)}</td><td style="color:${C.yel};font-weight:700">${fmt(v.saldo)}</td><td>${v.vence||"-"}</td></tr>`).join("");
+  const rp=cxpP.map(c=>`<tr><td>${h(c.proveedor)}</td><td>${fmt(c.total)}</td><td style="color:${C.red};font-weight:700">${fmt(c.saldo)}</td><td>${c.vence||"-"}</td></tr>`).join("");
+  return`
+  <div class="grid2" style="margin-bottom:14px">
+    ${sc("Ventas Totales",fmt(tv),C.green)}${sc("Compras Totales",fmt(tc),C.acc)}
+    ${sc("CxC Pendiente",fmt(cxcP.reduce((a,v)=>a+v.saldo,0)),C.yel)}${sc("CxP Pendiente",fmt(cxpP.reduce((a,c)=>a+c.saldo,0)),C.red)}
+  </div>
+  <div class="grid2">
+    <div class="card"><div class="h2" style="color:${C.yel}">💰 CxC (${cxcP.length})</div>${cxcP.length?`<div class="ov"><table><thead><tr><th>Cliente</th><th>Total</th><th>Saldo</th><th>Vence</th></tr></thead><tbody>${rc}</tbody></table></div>`:`<div style="color:${C.muted}">✅ Sin pendientes</div>`}</div>
+    <div class="card"><div class="h2" style="color:${C.red}">💳 CxP (${cxpP.length})</div>${cxpP.length?`<div class="ov"><table><thead><tr><th>Proveedor</th><th>Total</th><th>Saldo</th><th>Vence</th></tr></thead><tbody>${rp}</tbody></table></div>`:`<div style="color:${C.muted}">✅ Sin pendientes</div>`}</div>
+    <div class="card"><div class="h2" style="color:${C.blue}">📦 Stock Total</div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:${C.muted}">Unidades</span><b style="color:${C.blue}">${tu}</b></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px"><span style="color:${C.muted}">Valor inventario</span><b style="color:${C.blue}">${fmt(vs)}</b></div>
+      ${sb.length?`<div style="border-top:1px solid ${C.brd};padding-top:8px"><div style="font-size:11px;color:${C.red};margin-bottom:4px">⚠ Stock bajo (${sb.length})</div>${sb.map(p=>`<div style="display:flex;justify-content:space-between;font-size:12px"><span>${h(p.nombre)}</span>${bdg(p.stock,C.red)}</div>`).join("")}</div>`:""}
+    </div>
+    <div class="card"><div class="h2">📊 Últimas Ventas</div>${rv}</div>
+  </div>`;
+}
+
+// ── Log de Actividad ─────────────────────────────────────
+function buildLog(){
+  const rows=LOGS.map(l=>`<tr>
+    <td style="color:${C.muted};font-size:11px">${l.fecha} ${l.hora}</td>
+    <td>${bdg(l.usuario,C.acc)}</td>
+    <td><b>${h(l.accion)}</b></td>
+    <td style="color:${C.muted}">${h(l.detalle)}</td>
+  </tr>`).join("");
+  return`<div class="h2">📋 Registro de Actividad</div>
+  <div style="margin-bottom:10px">${bx("🔄 Actualizar",C.acc,"cargarLogs().then(R)","font-size:12px;padding:6px 12px")}</div>
+  <div class="card"><div class="ov"><table><thead><tr><th>Fecha / Hora</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr></thead>
+  <tbody>${rows||`<tr><td colspan="4" class="empty">Sin actividad registrada</td></tr>`}</tbody></table></div></div>`;
+}
+
+// ── Inventario ───────────────────────────────────────────
+function buildInv(){
+  const fs=[["Nombre*","nombre","text"],["SKU","sku","text"],["Categoría","categoria","text"],["Unidad","unidad","text"],["Precio","precio","number"],["Costo","costo","number"],["Stock","stock","number"],["Stock Mín","stockMin","number"]];
+  const imgSrc=IF.imagen||"";
+  const preview=imgSrc?`<img src="${imgSrc}" class="img-preview">`:`<div class="img-box">📦</div>`;
+  const form=`
+    <div class="grid2">${fs.map(([l,k,t])=>`<div><label class="lbl">${l}</label><input type="${t}" value="${h(IF[k])}" onchange="IF['${k}']=${t==='number'?'+':''} this.value"></div>`).join("")}</div>
+    <div style="border-top:1px solid ${C.brd};margin-top:14px;padding-top:14px">
+      <div class="lbl" style="margin-bottom:8px;font-size:12px;color:${C.muted}">IMAGEN DEL PRODUCTO</div>
+      <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
+        ${preview}
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <label class="img-btn" style="background:${C.acc}">📁 Subir imagen<input type="file" accept="image/*" style="display:none" onchange="imgProcess(this)"></label>
+          <label class="img-btn" style="background:${C.blue}">📷 Tomar foto<input type="file" accept="image/*" capture="environment" style="display:none" onchange="imgProcess(this)"></label>
+          ${imgSrc?`<button onclick="IF.imagen='';R()" class="img-btn" style="background:${C.red}">🗑 Quitar</button>`:""}
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:8px">
+      ${bx(IEd!==null?"Actualizar":"Guardar",C.acc,"invSave()")}
+      ${IEd!==null?bx("Cancelar",C.muted,"invCancel()"):""}
+    </div>`;
+  const rows=DB.productos.map((p,i)=>`<tr>
+    <td>${p.imagen?`<img src="${p.imagen}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid ${C.brd}">`:`<div class="img-placeholder">📦</div>`}</td>
+    <td style="color:${C.muted};font-size:12px">${h(p.sku)}</td><td><b>${h(p.nombre)}</b></td><td>${h(p.categoria)}</td>
+    <td>${fmt(p.precio)}</td><td>${fmt(p.costo)}</td>
+    <td>${bdg(`${p.stock} ${p.unidad}`,p.stock<=p.stockMin?C.red:C.green)}</td><td>${p.stockMin}</td>
+    <td>${bx("✏️",C.acc,`invEd(${i})`,`margin-right:4px;padding:4px 8px`)}${bx("🗑",C.red,`invDel(${i})`,`padding:4px 8px`)}</td>
+  </tr>`).join("");
+  return`<div class="card"><div class="h2">${IEd!==null?"✏️ Editar":"➕ Nuevo"} Producto</div>${form}</div>
+  <div class="card"><div class="h2">📦 Productos (${DB.productos.length})</div>
+  <div class="ov"><table><thead><tr><th>Img</th><th>SKU</th><th>Nombre</th><th>Cat.</th><th>Precio</th><th>Costo</th><th>Stock</th><th>Mín</th><th></th></tr></thead>
+  <tbody>${rows||`<tr><td colspan="9" class="empty">Sin productos</td></tr>`}</tbody></table></div></div>`;
+}
+
+function imgProcess(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const img=new Image();
+    img.onload=()=>{
+      const canvas=document.createElement("canvas");
+      const MAX=400;let w=img.width,hh=img.height;
+      if(w>hh){if(w>MAX){hh=Math.round(hh*(MAX/w));w=MAX;}}else{if(hh>MAX){w=Math.round(w*(MAX/hh));hh=MAX;}}
+      canvas.width=w;canvas.height=hh;canvas.getContext("2d").drawImage(img,0,0,w,hh);
+      IF.imagen=canvas.toDataURL("image/jpeg",0.7);R();
+    };img.src=ev.target.result;
+  };reader.readAsDataURL(file);input.value="";
+}
+
+async function invSave(){
+  if(!IF.nombre)return;
+  const id=IEd!==null?DB.productos[IEd].id:uid();
+  const item={...IF,id};
+  await fsGuardar("productos",id,item);
+  if(IEd!==null){DB.productos[IEd]=item;await logAct("EDITAR PRODUCTO",item.nombre);}
+  else{DB.productos.push(item);await logAct("NUEVO PRODUCTO",item.nombre);}
+  IF={nombre:"",sku:"",categoria:"",unidad:"unidad",precio:0,costo:0,stock:0,stockMin:5,imagen:""};IEd=null;R();
+}
+function invCancel(){IF={nombre:"",sku:"",categoria:"",unidad:"unidad",precio:0,costo:0,stock:0,stockMin:5,imagen:""};IEd=null;R();}
+function invEd(i){IF={...DB.productos[i],imagen:DB.productos[i].imagen||""};IEd=i;R();}
+async function invDel(i){
+  if(!confirm("¿Eliminar?"))return;
+  const p=DB.productos[i];
+  await fsEliminar("productos",p.id);
+  await logAct("ELIMINAR PRODUCTO",p.nombre);
+  DB.productos.splice(i,1);R();
+}
+
+// ── Entidades ────────────────────────────────────────────
+function buildEnt(tipo){
+  const esC=tipo==="clientes";
+  const fs=esC
+    ?[["Nombre*","nombre"],["RUC/Cédula","ruc"],["Email","email"],["Teléfono","telefono"],["Dirección","direccion"],["Crédito días","credito"],["Saldo Inicial ($)","saldoInicial"]]
+    :[["Nombre*","nombre"],["RUC","ruc"],["Email","email"],["Teléfono","telefono"],["Dirección","direccion"],["Contacto","contacto"]];
+  const camposBase=`<div class="grid2">${fs.map(([l,k])=>`<div><label class="lbl">${l}</label><input value="${h(EF[k]||"")}" onchange="EF['${k}']=this.value"></div>`).join("")}</div>`;
+  let fechasHtml="";
+  if(esC){
+    const filas=(EF.fechas||[]).map((f,i)=>`
+      <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:8px;flex-wrap:wrap">
+        <div style="flex:1;min-width:140px"><label class="lbl">Tipo</label>
+          <select onchange="EF.fechas[${i}].tipo=this.value" style="width:100%">
+            <option value="">-- Tipo --</option>
+            ${["Cumpleaños","Aniversario","Otro"].map(op=>`<option value="${op}"${f.tipo===op?" selected":""}>${op}</option>`).join("")}
+          </select>
+        </div>
+        <div style="flex:1;min-width:130px"><label class="lbl">Fecha (MM-DD)</label>
+          <input type="text" placeholder="12-25" value="${h(f.fecha)}" onchange="EF.fechas[${i}].fecha=this.value">
+        </div>
+        ${i>1?`<button onclick="EF.fechas.splice(${i},1);R()" style="background:${C.red};color:#fff;border:none;border-radius:6px;padding:7px 10px;cursor:pointer">✕</button>`:""}
+      </div>`).join("");
+    fechasHtml=`<div style="border-top:1px solid ${C.brd};margin-top:14px;padding-top:14px">
+      <div style="font-size:12px;font-weight:600;color:${C.muted};margin-bottom:10px">📅 FECHAS IMPORTANTES</div>
+      ${filas}
+      <button onclick="EF.fechas.push({tipo:'',fecha:''});R()" style="background:${C.acc2};color:#fff;border:none;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:600">+ Agregar fecha</button>
+    </div>`;
+  }
+  const form=`${camposBase}${fechasHtml}
+  <div style="margin-top:14px;display:flex;gap:8px">
+    ${bx(EEd!==null?"Actualizar":"Guardar",C.acc,`entSave('${tipo}')`)}
+    ${EEd!==null?bx("Cancelar",C.muted,"entCancel()"):""}
+  </div>`;
+  const rows=DB[tipo].map((e,i)=>{
+    const fds=esC&&e.fechas?.filter(f=>f.tipo&&f.fecha).map(f=>bdg(`${f.tipo}: ${f.fecha}`,C.blue)).join(" ")||"";
+    const saldoIni=esC&&e.saldoInicial>0?bdg(`Saldo: ${fmt(e.saldoInicial)}`,C.red):"";
+    return`<tr><td><b>${h(e.nombre)}</b></td><td>${h(e.ruc)}</td><td>${h(e.email)}</td><td>${h(e.telefono)}</td>
+    <td>${esC?`${e.credito} días`:h(e.contacto)}</td>
+    ${esC?`<td>${saldoIni||"-"}</td><td>${fds||"-"}</td>`:""}
+    <td>${bx("✏️",C.acc,`entEd('${tipo}',${i})`,`margin-right:4px;padding:4px 8px`)}${bx("🗑",C.red,`entDel('${tipo}',${i})`,`padding:4px 8px`)}</td></tr>`;
+  }).join("");
+  const thExtra=esC?`<th>Saldo Ini.</th><th>Fechas Imp.</th>`:"";
+  return`<div class="card"><div class="h2">${EEd!==null?"✏️ Editar":"➕ Nuevo"} ${esC?"Cliente":"Proveedor"}</div>${form}</div>
+  <div class="card"><div class="h2">${esC?"👥 Clientes":"🏭 Proveedores"} (${DB[tipo].length})</div>
+  <div class="ov"><table><thead><tr><th>Nombre</th><th>RUC</th><th>Email</th><th>Teléfono</th><th>${esC?"Crédito":"Contacto"}</th>${thExtra}<th></th></tr></thead>
+  <tbody>${rows||`<tr><td colspan="${esC?8:6}" class="empty">Sin registros</td></tr>`}</tbody></table></div></div>`;
+}
+
+async function entSave(tipo){
+  if(!EF.nombre)return;
+  const id=EEd!==null?DB[tipo][EEd].id:uid();
+  const item={...EF,id};
+  await fsGuardar(tipo,id,item);
+  if(EEd!==null){DB[tipo][EEd]=item;await logAct(`EDITAR ${tipo.toUpperCase()}`,item.nombre);}
+  else{DB[tipo].push(item);await logAct(`NUEVO ${tipo.toUpperCase()}`,item.nombre);}
+  EF={nombre:"",ruc:"",email:"",telefono:"",direccion:"",credito:0,contacto:"",saldoInicial:0,fechas:[{tipo:"Cumpleaños",fecha:""},{tipo:"Aniversario",fecha:""}]};
+  EEd=null;R();
+}
+function entCancel(){EF={nombre:"",ruc:"",email:"",telefono:"",direccion:"",credito:0,contacto:"",saldoInicial:0,fechas:[{tipo:"Cumpleaños",fecha:""},{tipo:"Aniversario",fecha:""}]};EEd=null;R();}
+function entEd(tipo,i){const e=DB[tipo][i];EF={...e,fechas:e.fechas&&e.fechas.length?[...e.fechas]:[{tipo:"Cumpleaños",fecha:""},{tipo:"Aniversario",fecha:""}]};EEd=i;R();}
+async function entDel(tipo,i){
+  if(!confirm("¿Eliminar?"))return;
+  const e=DB[tipo][i];
+  await fsEliminar(tipo,e.id);
+  await logAct(`ELIMINAR ${tipo.toUpperCase()}`,e.nombre);
+  DB[tipo].splice(i,1);R();
+}
+
+// ── Ventas ───────────────────────────────────────────────
+function buildVentas(){
+  if(VV==="nueva")return buildVN();
+  if(VD!==null)return buildVDet(VD);
+  const rows=[...DB.ventas].reverse().map((v,i)=>`<tr><td style="color:${C.muted};font-size:11px">#${v.id.slice(-6).toUpperCase()}</td><td>${v.fecha}</td><td>${h(v.cliente)}</td><td>${v.fp}</td><td style="color:${C.green};font-weight:600">${fmt(v.total)}</td><td>${bdg(v.estado,v.estado==="pagado"?C.green:C.yel)}</td><td>${bx("Ver",C.acc,`vVer(${DB.ventas.length-1-i})`,`padding:4px 8px`)}</td></tr>`).join("");
+  return`<div class="row-between"><div class="h2">🧾 Ventas (${DB.ventas.length})</div>${bx("+ Nueva Venta",C.green,"vNueva()")}</div>
+  <div class="card"><div class="ov"><table><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Forma Pago</th><th>Total</th><th>Estado</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="7" class="empty">Sin ventas</td></tr>`}</tbody></table></div></div>`;
+}
+function buildVN(){
+  const total=VF.lns.reduce((a,l)=>a+l.qty*l.pu,0);
+  const opC=DB.clientes.map((c,i)=>`<option value="${i}"${VF.cliente===String(i)?" selected":""}>${h(c.nombre)}</option>`).join("");
+  const opP=DB.productos.map((p,i)=>`<option value="${i}">${h(p.nombre)}</option>`).join("");
+  const lns=VF.lns.map((l,i)=>`<div class="grid4">
+    <div><label class="lbl">Producto</label><select onchange="vSelP(${i},this.value)"><option value="">--</option>${opP}</select></div>
+    <div><label class="lbl">Descripción</label><input value="${h(l.desc)}" onchange="VF.lns[${i}].desc=this.value"></div>
+    <div><label class="lbl">Cant.</label><input type="number" value="${l.qty}" onchange="VF.lns[${i}].qty=+this.value"></div>
+    <div style="display:flex;gap:4px;align-items:flex-end"><div style="flex:1"><label class="lbl">P.Unit.</label><input type="number" value="${l.pu}" onchange="VF.lns[${i}].pu=+this.value"></div>${bx("✕",C.red,`vDelL(${i})`,`padding:7px 10px`)}</div></div>`).join("");
+  return`<div style="display:flex;gap:8px;margin-bottom:10px">${bx("← Volver",C.muted,"VV='lista';R()")}<b style="line-height:2">Nueva Venta</b></div>
+  <div class="card"><div class="grid2">
+    <div><label class="lbl">Fecha</label><input type="date" value="${VF.fecha}" onchange="VF.fecha=this.value"></div>
+    <div><label class="lbl">Cliente</label><select onchange="VF.cliente=this.value"><option value="">Seleccionar...</option>${opC}<option value="cf"${VF.cliente==="cf"?" selected":""}>Consumidor Final</option></select></div>
+    <div><label class="lbl">Forma Pago</label><select onchange="VF.fp=this.value;R()">${["contado","credito","transferencia","tarjeta"].map(f=>`<option value="${f}"${VF.fp===f?" selected":""}>${f}</option>`).join("")}</select></div>
+    ${VF.fp==="credito"?`<div><label class="lbl">Vence (AAAA-MM-DD)</label><input type="text" placeholder="2025-12-31" maxlength="10" value="${VF.vence}" onchange="VF.vence=this.value"></div>`:""}
+  </div></div>
+  <div class="card"><div class="h2">Detalle</div>${lns}${bx("+ Línea",C.acc2,"vAddL()",`margin-top:4px`)}
+    <div style="margin-top:14px;text-align:right;border-top:1px solid ${C.brd};padding-top:10px">
+      <div style="font-size:17px;font-weight:700">Total: <span style="color:${C.green}">${fmt(total)}</span></div>
+    </div>
+  </div>${bx("💾 Guardar Venta",C.green,"vGuardar()")}`;
+}
+function buildVDet(i){
+  const v=DB.ventas[i];
+  const rows=v.lineas.map(l=>`<tr><td>${h(l.desc)}</td><td>${l.qty}</td><td>${fmt(l.pu)}</td><td>${fmt(l.qty*l.pu)}</td></tr>`).join("");
+  return`${bx("← Volver",C.muted,"VD=null;R()",`margin-bottom:10px`)}
+  <div class="card"><div class="h2">Factura #${v.id.slice(-6).toUpperCase()}</div>
+    <div class="grid2" style="margin-bottom:14px">${[["Fecha",v.fecha],["Cliente",v.cliente],["Forma Pago",v.fp],["Estado",v.estado],["Registrado por",v.usuario||"-"]].map(([l,val])=>`<div><span style="color:${C.muted};font-size:12px">${l}: </span><b>${h(val)}</b></div>`).join("")}</div>
+    <div class="ov"><table><thead><tr><th>Descripción</th><th>Cant.</th><th>P.Unit.</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div style="text-align:right;margin-top:8px"><div style="font-size:15px;font-weight:700">Total: <span style="color:${C.green}">${fmt(v.total)}</span></div>${v.saldo>0?`<div style="color:${C.red}">Saldo: ${fmt(v.saldo)}</div>`:""}</div>
+  </div>`;
+}
+function vNueva(){VV="nueva";VF={fecha:tod(),cliente:"",fp:"contado",vence:"",lns:[newLV()]};R();}
+function vSelP(i,pi){if(pi==="")return;const p=DB.productos[+pi];VF.lns[i].pid=pi;VF.lns[i].desc=p.nombre;VF.lns[i].pu=p.precio;R();}
+function vAddL(){VF.lns.push(newLV());R();}
+function vDelL(i){VF.lns.splice(i,1);R();}
+function vVer(i){VD=i;R();}
+async function vGuardar(){
+  if(!VF.cliente||VF.lns.every(l=>!l.desc))return alert("Complete cliente y al menos un producto.");
+  const lns=VF.lns.filter(l=>l.desc);
+  const total=lns.reduce((a,l)=>a+l.qty*l.pu,0);
+  const cli=VF.cliente==="cf"?"Consumidor Final":(DB.clientes[+VF.cliente]?.nombre||VF.cliente);
+  const id=uid();
+  const v={id,fecha:VF.fecha,cliente:cli,fp:VF.fp,vence:VF.vence,lineas:lns,subtotal:total,iva:0,total,saldo:VF.fp==="contado"?0:total,estado:VF.fp==="contado"?"pagado":"pendiente",pagos:[],usuario:CU?.email||""};
+  await fsGuardar("ventas",id,v);
+  DB.ventas.push(v);
+  for(const l of lns){if(l.pid!==""){const idx=+l.pid;if(DB.productos[idx]){DB.productos[idx].stock-=l.qty;await fsGuardar("productos",DB.productos[idx].id,DB.productos[idx]);}}}
+  await logAct("NUEVA VENTA",`${cli} · ${fmt(total)}`);
+  VV="lista";R();
+}
+
+// ── Compras ──────────────────────────────────────────────
+function buildCompras(){
+  if(CV==="nueva")return buildCN();
+  if(CD!==null)return buildCDet(CD);
+  const rows=[...DB.compras].reverse().map((c,i)=>`<tr><td style="color:${C.muted};font-size:11px">#${c.id.slice(-6).toUpperCase()}</td><td>${c.fecha}</td><td>${h(c.proveedor)}</td><td>${c.fp}</td><td style="color:${C.acc};font-weight:600">${fmt(c.total)}</td><td>${bdg(c.estado,c.estado==="pagado"?C.green:C.yel)}</td><td>${bx("Ver",C.acc,`cVer(${DB.compras.length-1-i})`,`padding:4px 8px`)}</td></tr>`).join("");
+  return`<div class="row-between"><div class="h2">🛒 Compras (${DB.compras.length})</div>${bx("+ Nueva Compra",C.acc,"cNueva()")}</div>
+  <div class="card"><div class="ov"><table><thead><tr><th>#</th><th>Fecha</th><th>Proveedor</th><th>Forma Pago</th><th>Total</th><th>Estado</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="7" class="empty">Sin compras</td></tr>`}</tbody></table></div></div>`;
+}
+function buildCN(){
+  const total=CF.lns.reduce((a,l)=>a+l.qty*l.costo,0);
+  const opP=DB.proveedores.map((p,i)=>`<option value="${i}"${CF.proveedor===String(i)?" selected":""}>${h(p.nombre)}</option>`).join("");
+  const opProd=DB.productos.map((p,i)=>`<option value="${i}">${h(p.nombre)}</option>`).join("");
+  const lns=CF.lns.map((l,i)=>`<div class="grid4">
+    <div><label class="lbl">Producto</label><select onchange="cSelP(${i},this.value)"><option value="">--</option>${opProd}</select></div>
+    <div><label class="lbl">Descripción</label><input value="${h(l.desc)}" onchange="CF.lns[${i}].desc=this.value"></div>
+    <div><label class="lbl">Cant.</label><input type="number" value="${l.qty}" onchange="CF.lns[${i}].qty=+this.value"></div>
+    <div style="display:flex;gap:4px;align-items:flex-end"><div style="flex:1"><label class="lbl">Costo</label><input type="number" value="${l.costo}" onchange="CF.lns[${i}].costo=+this.value"></div>${bx("✕",C.red,`cDelL(${i})`,`padding:7px 10px`)}</div></div>`).join("");
+  return`<div style="display:flex;gap:8px;margin-bottom:10px">${bx("← Volver",C.muted,"CV='lista';R()")}<b style="line-height:2">Nueva Compra</b></div>
+  <div class="card"><div class="grid2">
+    <div><label class="lbl">Fecha</label><input type="date" value="${CF.fecha}" onchange="CF.fecha=this.value"></div>
+    <div><label class="lbl">Proveedor</label><select onchange="CF.proveedor=this.value"><option value="">Seleccionar...</option>${opP}</select></div>
+    <div><label class="lbl">Forma Pago</label><select onchange="CF.fp=this.value;R()">${["contado","credito","transferencia"].map(f=>`<option value="${f}"${CF.fp===f?" selected":""}>${f}</option>`).join("")}</select></div>
+    ${CF.fp==="credito"?`<div><label class="lbl">Vence (AAAA-MM-DD)</label><input type="text" placeholder="2025-12-31" maxlength="10" value="${CF.vence}" onchange="CF.vence=this.value"></div>`:""}
+  </div></div>
+  <div class="card"><div class="h2">Detalle</div>${lns}${bx("+ Línea",C.acc2,"cAddL()",`margin-top:4px`)}
+    <div style="margin-top:14px;text-align:right;border-top:1px solid ${C.brd};padding-top:10px">
+      <div style="font-size:17px;font-weight:700">Total: <span style="color:${C.acc}">${fmt(total)}</span></div>
+    </div>
+  </div>${bx("💾 Guardar Compra",C.acc,"cGuardar()")}`;
+}
+function buildCDet(i){
+  const c=DB.compras[i];
+  const rows=c.lineas.map(l=>`<tr><td>${h(l.desc)}</td><td>${l.qty}</td><td>${fmt(l.costo)}</td><td>${fmt(l.qty*l.costo)}</td></tr>`).join("");
+  return`${bx("← Volver",C.muted,"CD=null;R()",`margin-bottom:10px`)}
+  <div class="card"><div class="h2">Compra #${c.id.slice(-6).toUpperCase()}</div>
+    <div class="grid2" style="margin-bottom:14px">${[["Fecha",c.fecha],["Proveedor",c.proveedor],["Forma Pago",c.fp],["Estado",c.estado],["Registrado por",c.usuario||"-"]].map(([l,val])=>`<div><span style="color:${C.muted};font-size:12px">${l}: </span><b>${h(val)}</b></div>`).join("")}</div>
+    <div class="ov"><table><thead><tr><th>Descripción</th><th>Cant.</th><th>Costo</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div style="text-align:right;margin-top:8px"><div style="font-size:15px;font-weight:700">Total: <span style="color:${C.acc}">${fmt(c.total)}</span></div>${c.saldo>0?`<div style="color:${C.red}">Saldo: ${fmt(c.saldo)}</div>`:""}</div>
+  </div>`;
+}
+function cNueva(){CV="nueva";CF={fecha:tod(),proveedor:"",fp:"contado",vence:"",lns:[newLC()]};R();}
+function cSelP(i,pi){if(pi==="")return;const p=DB.productos[+pi];CF.lns[i].pid=pi;CF.lns[i].desc=p.nombre;CF.lns[i].costo=p.costo;R();}
+function cAddL(){CF.lns.push(newLC());R();}
+function cDelL(i){CF.lns.splice(i,1);R();}
+function cVer(i){CD=i;R();}
+async function cGuardar(){
+  if(!CF.proveedor||CF.lns.every(l=>!l.desc))return alert("Complete proveedor y al menos un producto.");
+  const lns=CF.lns.filter(l=>l.desc);
+  const total=lns.reduce((a,l)=>a+l.qty*l.costo,0);
+  const prov=DB.proveedores[+CF.proveedor]?.nombre||CF.proveedor;
+  const id=uid();
+  const c={id,fecha:CF.fecha,proveedor:prov,fp:CF.fp,vence:CF.vence,lineas:lns,subtotal:total,iva:0,total,saldo:CF.fp==="contado"?0:total,estado:CF.fp==="contado"?"pagado":"pendiente",pagos:[],usuario:CU?.email||""};
+  await fsGuardar("compras",id,c);
+  DB.compras.push(c);
+  for(const l of lns){if(l.pid!==""){const idx=+l.pid;if(DB.productos[idx]){DB.productos[idx].stock+=l.qty;await fsGuardar("productos",DB.productos[idx].id,DB.productos[idx]);}}}
+  await logAct("NUEVA COMPRA",`${prov} · ${fmt(total)}`);
+  CV="lista";R();
+}
+
+// ── CxC ──────────────────────────────────────────────────
+function buildCxC(){
+  const pend=DB.ventas.map((v,i)=>({...v,_i:i})).filter(v=>v.estado==="pendiente");
+  const tot=pend.reduce((a,v)=>a+v.saldo,0);
+  const panel=ST.cxcIdx>=0?buildPanel(ST.cxcIdx,"cobrar"):"";
+  const rows=pend.map(v=>`<tr>
+    <td style="color:${C.muted};font-size:11px">#${v.id.slice(-6).toUpperCase()}</td><td>${v.fecha}</td><td>${h(v.cliente)}</td><td>${fmt(v.total)}</td>
+    <td style="color:${C.green};font-weight:600">${fmt(v.total-v.saldo)}</td><td style="color:${C.yel};font-weight:700">${fmt(v.saldo)}</td><td>${v.vence||"-"}</td>
+    <td><button onclick="ST.cxcIdx=${v._i};PM={monto:${v.saldo},forma:'transferencia'};R()" style="background:${C.acc};color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;font-weight:600">💳 Gestionar</button></td>
+  </tr>`).join("");
+  return`<div class="h2">💰 Cuentas por Cobrar</div>
+  <div class="grid2" style="margin-bottom:14px">${sc("Total Pendiente",fmt(tot),C.yel)}${sc("Facturas",pend.length,C.acc)}</div>
+  ${panel}<div class="card"><div class="ov"><table><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Pagado</th><th>Saldo</th><th>Vence</th><th></th></tr></thead>
+  <tbody>${rows||`<tr><td colspan="8" class="empty">✅ Sin pendientes</td></tr>`}</tbody></table></div></div>`;
+}
+function buildCxP(){
+  const pend=DB.compras.map((c,i)=>({...c,_i:i})).filter(c=>c.estado==="pendiente");
+  const tot=pend.reduce((a,c)=>a+c.saldo,0);
+  const panel=ST.cxpIdx>=0?buildPanel(ST.cxpIdx,"pagar"):"";
+  const rows=pend.map(c=>`<tr>
+    <td style="color:${C.muted};font-size:11px">#${c.id.slice(-6).toUpperCase()}</td><td>${c.fecha}</td><td>${h(c.proveedor)}</td><td>${fmt(c.total)}</td>
+    <td style="color:${C.green};font-weight:600">${fmt(c.total-c.saldo)}</td><td style="color:${C.red};font-weight:700">${fmt(c.saldo)}</td><td>${c.vence||"-"}</td>
+    <td><button onclick="ST.cxpIdx=${c._i};PM={monto:${c.saldo},forma:'transferencia'};R()" style="background:${C.acc};color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;font-weight:600">💳 Gestionar</button></td>
+  </tr>`).join("");
+  return`<div class="h2">💳 Cuentas por Pagar</div>
+  <div class="grid2" style="margin-bottom:14px">${sc("Total Pendiente",fmt(tot),C.red)}${sc("Facturas",pend.length,C.acc)}</div>
+  ${panel}<div class="card"><div class="ov"><table><thead><tr><th>#</th><th>Fecha</th><th>Proveedor</th><th>Total</th><th>Pagado</th><th>Saldo</th><th>Vence</th><th></th></tr></thead>
+  <tbody>${rows||`<tr><td colspan="8" class="empty">✅ Sin pendientes</td></tr>`}</tbody></table></div></div>`;
+}
+function buildPanel(idx,tipo){
+  const item=tipo==="cobrar"?DB.ventas[idx]:DB.compras[idx];if(!item)return"";
+  const col=tipo==="cobrar"?C.green:C.red;
+  const ent=tipo==="cobrar"?item.cliente:item.proveedor;
+  const pagado=item.total-item.saldo;
+  const pct=item.total>0?Math.min(100,(pagado/item.total)*100).toFixed(0):0;
+  const pagos=item.pagos||[];
+  const hist=pagos.length?`<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:${C.muted};margin-bottom:6px">Historial:</div>
+    <div class="ov"><table><thead><tr><th>Fecha</th><th>Forma</th><th>Monto</th><th>Usuario</th></tr></thead>
+    <tbody>${pagos.map(p=>`<tr><td>${p.fecha}</td><td>${p.forma}</td><td style="color:${C.green};font-weight:600">${fmt(p.monto)}</td><td style="color:${C.muted};font-size:11px">${p.usuario||"-"}</td></tr>`).join("")}</tbody></table></div></div>`:"";
+  const cerrar=tipo==="cobrar"?"ST.cxcIdx=-1;R()":"ST.cxpIdx=-1;R()";
+  const accion=tipo==="cobrar"?"pagarCxC()":"pagarCxP()";
+  return`<div class="card" style="border-left:4px solid ${col};margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div><b style="font-size:15px">${h(ent)} — #${item.id.slice(-6).toUpperCase()}</b><br><span style="font-size:12px;color:${C.muted}">Total: ${fmt(item.total)} · Vence: ${item.vence||"-"}</span></div>
+      <button onclick="${cerrar}" style="background:${C.muted};color:#fff;border:none;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px;font-weight:600">✕ Cerrar</button>
+    </div>
+    <div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="color:${C.green}">Pagado: ${fmt(pagado)}</span><span style="color:${col}">Saldo: ${fmt(item.saldo)}</span></div>
+      <div class="prog-bg"><div class="prog-fill" style="width:${pct}%;background:${C.green}"></div></div>
+      <div style="font-size:11px;color:${C.muted};text-align:right;margin-top:2px">${pct}% pagado</div>
+    </div>
+    ${hist}
+    ${item.saldo>0?`<div style="border-top:1px solid ${C.brd};padding-top:12px">
+      <div style="font-size:12px;font-weight:600;color:${C.muted};margin-bottom:8px">Registrar ${tipo==="cobrar"?"cobro":"pago"}:</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <div style="flex:1;min-width:100px"><label class="lbl">Monto</label><input type="number" id="pmonto" value="${PM.monto}" onchange="PM.monto=+this.value"></div>
+        <div style="flex:1;min-width:130px"><label class="lbl">Forma de Pago</label><select id="pforma" onchange="PM.forma=this.value">${["efectivo","transferencia","tarjeta","cheque","otro"].map(f=>`<option value="${f}"${PM.forma===f?" selected":""}>${f}</option>`).join("")}</select></div>
+        <button onclick="${accion}" style="background:${col};color:#fff;border:none;border-radius:6px;padding:9px 16px;cursor:pointer;font-size:13px;font-weight:600">${tipo==="cobrar"?"✓ Cobrar":"✓ Pagar"}</button>
+      </div>
+    </div>`:`<div style="text-align:center;color:${C.green};font-weight:700;padding:8px">✅ Completamente pagado</div>`}
+  </div>`;
+}
+async function pagarCxC(){
+  const monto=+document.getElementById("pmonto").value;const forma=document.getElementById("pforma").value;
+  if(monto<=0)return alert("Ingrese un monto válido.");
+  const idx=ST.cxcIdx;const v=DB.ventas[idx];const saldo=Math.max(0,v.saldo-monto);
+  const pago={fecha:tod(),monto,forma,usuario:CU?.email||""};
+  const updated={...v,saldo,estado:saldo===0?"pagado":"pendiente",pagos:[...(v.pagos||[]),pago]};
+  await fsGuardar("ventas",v.id,updated);
+  DB.ventas[idx]=updated;
+  await logAct("PAGO CxC",`${v.cliente} · ${fmt(monto)}`);
+  if(saldo===0)ST.cxcIdx=-1;PM.monto=saldo;R();
+}
+async function pagarCxP(){
+  const monto=+document.getElementById("pmonto").value;const forma=document.getElementById("pforma").value;
+  if(monto<=0)return alert("Ingrese un monto válido.");
+  const idx=ST.cxpIdx;const c=DB.compras[idx];const saldo=Math.max(0,c.saldo-monto);
+  const pago={fecha:tod(),monto,forma,usuario:CU?.email||""};
+  const updated={...c,saldo,estado:saldo===0?"pagado":"pendiente",pagos:[...(c.pagos||[]),pago]};
+  await fsGuardar("compras",c.id,updated);
+  DB.compras[idx]=updated;
+  await logAct("PAGO CxP",`${c.proveedor} · ${fmt(monto)}`);
+  if(saldo===0)ST.cxpIdx=-1;PM.monto=saldo;R();
+}
+
+// ── Reportes ─────────────────────────────────────────────
+const SUBS=[{k:"dv",l:"📋 Diario Ventas"},{k:"vc",l:"👥 Ventas x Cliente"},{k:"vp",l:"📦 Ventas x Producto"},{k:"rpc",l:"🔗 Prod-Cliente"},{k:"dc",l:"📋 Diario Compras"},{k:"cp",l:"🏭 Compras x Prov."},{k:"er",l:"📈 Estado Result."},{k:"fc",l:"💵 Flujo Caja"},{k:"ca",l:"📅 Cartera"},{k:"ro",l:"🔄 Rotación"},{k:"fp",l:"💳 Formas Pago"},{k:"rc",l:"👤 Rep. Cliente"}];
+function buildRep(){
+  const tabs=SUBS.map(s=>`<button onclick="ST.sub='${s.k}';R()" style="background:${ST.sub===s.k?"#6366f1":"#1e293b"};color:${ST.sub===s.k?"#fff":"#94a3b8"};border:1px solid #334155;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600">${s.l}</button>`).join("");
+  const filtro=`<div class="card" style="margin-bottom:14px"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+    <div><label class="lbl">Desde</label><input type="date" value="${ST.rD}" onchange="ST.rD=this.value;R()" style="width:140px"></div>
+    <div><label class="lbl">Hasta</label><input type="date" value="${ST.rH}" onchange="ST.rH=this.value;R()" style="width:140px"></div>
+    <button onclick="ST.rD='${defDesde()}';ST.rH='${tod()}';R()" style="background:#94a3b8;color:#fff;border:none;border-radius:6px;padding:7px 12px;cursor:pointer;font-size:12px;font-weight:600">Este mes</button>
+    <button onclick="ST.rD='${new Date(Date.now()-6*86400000).toISOString().split('T')[0]}';ST.rH='${tod()}';R()" style="background:#94a3b8;color:#fff;border:none;border-radius:6px;padding:7px 12px;cursor:pointer;font-size:12px;font-weight:600">7 días</button>
+    <button onclick="ST.rD='2000-01-01';ST.rH='${tod()}';R()" style="background:#94a3b8;color:#fff;border:none;border-radius:6px;padding:7px 12px;cursor:pointer;font-size:12px;font-weight:600">Todo</button>
+  </div></div>`;
+  const V=DB.ventas.filter(v=>v.fecha>=ST.rD&&v.fecha<=ST.rH);
+  const K=DB.compras.filter(c=>c.fecha>=ST.rD&&c.fecha<=ST.rH);
+  let body="";
+  if(ST.sub==="dv")body=rDV(V);else if(ST.sub==="vc")body=rVC(V);else if(ST.sub==="vp")body=rVP(V);
+  else if(ST.sub==="rpc")body=rRPC(V);else if(ST.sub==="dc")body=rDC(K);else if(ST.sub==="cp")body=rCP(K);
+  else if(ST.sub==="er")body=rER(V,K);else if(ST.sub==="fc")body=rFC(V,K);else if(ST.sub==="ca")body=rCA();
+  else if(ST.sub==="ro")body=rRO(V);else if(ST.sub==="fp")body=rFP(V);else if(ST.sub==="rc")body=rRC(V);
+  return`<div class="sub-tabs">${tabs}</div>${filtro}${body}`;
+}
+function rDV(V){const pf={};V.forEach(v=>{if(!pf[v.fecha])pf[v.fecha]={vs:[],t:0};pf[v.fecha].vs.push(v);pf[v.fecha].t+=v.total;});const f=Object.keys(pf).sort().reverse();return`<div class="h2">📋 Diario de Ventas</div><div class="grid2" style="margin-bottom:14px">${sc("Facturas",V.length,C.acc)}${sc("Total",fmt(V.reduce((a,v)=>a+v.total,0)),C.green)}</div>${f.map(d=>`<div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><b style="color:${C.acc2}">${d}</b><b style="color:${C.green}">${fmt(pf[d].t)}</b></div><div class="ov"><table><thead><tr><th>#</th><th>Cliente</th><th>Forma</th><th>Total</th><th>Estado</th><th>Usuario</th></tr></thead><tbody>${pf[d].vs.map(v=>`<tr><td style="font-size:11px;color:${C.muted}">#${v.id.slice(-6).toUpperCase()}</td><td>${h(v.cliente)}</td><td>${v.fp}</td><td style="color:${C.green};font-weight:600">${fmt(v.total)}</td><td>${bdg(v.estado,v.estado==="pagado"?C.green:C.yel)}</td><td style="font-size:11px;color:${C.muted}">${v.usuario||"-"}</td></tr>`).join("")}</tbody></table></div></div>`).join("")||`<div class="card empty">Sin ventas en el rango</div>`}`;}
+function rVC(V){const m={};V.forEach(v=>{if(!m[v.cliente])m[v.cliente]={n:0,t:0};m[v.cliente].n++;m[v.cliente].t+=v.total;});const lista=Object.entries(m).sort((a,b)=>b[1].t-a[1].t);const gt=V.reduce((a,v)=>a+v.total,0);const rows=lista.map(([c,d])=>{const p=gt>0?((d.t/gt)*100).toFixed(1):0;return`<tr><td><b>${h(c)}</b></td><td>${d.n}</td><td style="color:${C.green};font-weight:700">${fmt(d.t)}</td><td><div style="display:flex;align-items:center;gap:6px"><div style="background:#334155;border-radius:4px;height:6px;width:80px"><div style="width:${p}%;background:${C.green};height:6px;border-radius:4px"></div></div><span style="font-size:11px">${p}%</span></div></td></tr>`;}).join("");return`<div class="h2">👥 Ventas por Cliente</div><div class="card"><div class="ov"><table><thead><tr><th>Cliente</th><th>Fact.</th><th>Total</th><th>%</th></tr></thead><tbody>${rows||`<tr><td colspan="4" class="empty">Sin datos</td></tr>`}${lista.length?`<tr style="background:${C.bg}"><td style="font-weight:700">TOTAL</td><td>${V.length}</td><td style="color:${C.green};font-weight:700">${fmt(gt)}</td><td>100%</td></tr>`:""}</tbody></table></div></div>`;}
+function rVP(V){const m={};V.forEach(v=>v.lineas?.forEach(l=>{const k=l.desc;const prod=DB.productos.find(p=>p.nombre===k);if(!m[k])m[k]={q:0,t:0,f:0,sku:prod?.sku||"-"};m[k].q+=l.qty;m[k].t+=l.qty*l.pu;m[k].f++;}));const lista=Object.entries(m).sort((a,b)=>b[1].t-a[1].t);const gt=lista.reduce((a,[,d])=>a+d.t,0);const rows=lista.map(([p,d])=>{const pc=gt>0?((d.t/gt)*100).toFixed(1):0;return`<tr><td style="color:${C.muted};font-size:12px">${h(d.sku)}</td><td><b>${h(p)}</b></td><td>${d.q}</td><td>${d.f}</td><td style="color:${C.green};font-weight:700">${fmt(d.t)}</td><td><div style="display:flex;align-items:center;gap:6px"><div style="background:#334155;border-radius:4px;height:6px;width:80px"><div style="width:${pc}%;background:${C.acc};height:6px;border-radius:4px"></div></div><span style="font-size:11px">${pc}%</span></div></td></tr>`;}).join("");return`<div class="h2">📦 Ventas por Producto</div><div class="card"><div class="ov"><table><thead><tr><th>SKU</th><th>Producto</th><th>Uds.</th><th>Veces</th><th>Total</th><th>%</th></tr></thead><tbody>${rows||`<tr><td colspan="6" class="empty">Sin datos</td></tr>`}</tbody></table></div></div>`;}
+function rRPC(V){const m={};V.forEach(v=>v.lineas?.forEach(l=>{const k=l.desc+"|||"+v.cliente;const prod=DB.productos.find(p=>p.nombre===l.desc);if(!m[k])m[k]={p:l.desc,c:v.cliente,q:0,t:0,n:0,sku:prod?.sku||"-"};m[k].q+=l.qty;m[k].t+=l.qty*l.pu;m[k].n++;}));const rows=Object.values(m).sort((a,b)=>b.t-a.t).map(r=>`<tr><td style="color:${C.muted};font-size:12px">${h(r.sku)}</td><td><b>${h(r.p)}</b></td><td>${h(r.c)}</td><td>${r.q}</td><td>${r.n}</td><td style="color:${C.green};font-weight:600">${fmt(r.t)}</td></tr>`).join("");return`<div class="h2">🔗 Relación Producto - Cliente</div><div class="card"><div class="ov"><table><thead><tr><th>SKU</th><th>Producto</th><th>Cliente</th><th>Uds.</th><th>Veces</th><th>Total</th></tr></thead><tbody>${rows||`<tr><td colspan="6" class="empty">Sin datos</td></tr>`}</tbody></table></div></div>`;}
+function rDC(K){const pf={};K.forEach(c=>{if(!pf[c.fecha])pf[c.fecha]={cs:[],t:0};pf[c.fecha].cs.push(c);pf[c.fecha].t+=c.total;});const f=Object.keys(pf).sort().reverse();return`<div class="h2">📋 Diario de Compras</div><div class="grid2" style="margin-bottom:14px">${sc("Órdenes",K.length,C.acc)}${sc("Total",fmt(K.reduce((a,c)=>a+c.total,0)),C.acc)}</div>${f.map(d=>`<div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><b style="color:${C.acc2}">${d}</b><b style="color:${C.acc}">${fmt(pf[d].t)}</b></div><div class="ov"><table><thead><tr><th>#</th><th>Proveedor</th><th>Forma</th><th>Total</th><th>Estado</th><th>Usuario</th></tr></thead><tbody>${pf[d].cs.map(c=>`<tr><td style="font-size:11px;color:${C.muted}">#${c.id.slice(-6).toUpperCase()}</td><td>${h(c.proveedor)}</td><td>${c.fp}</td><td style="color:${C.acc};font-weight:600">${fmt(c.total)}</td><td>${bdg(c.estado,c.estado==="pagado"?C.green:C.yel)}</td><td style="font-size:11px;color:${C.muted}">${c.usuario||"-"}</td></tr>`).join("")}</tbody></table></div></div>`).join("")||`<div class="card empty">Sin compras en el rango</div>`}`;}
+function rCP(K){const m={};K.forEach(c=>{if(!m[c.proveedor])m[c.proveedor]={n:0,t:0,compras:[]};m[c.proveedor].n++;m[c.proveedor].t+=c.total;m[c.proveedor].compras.push({fecha:c.fecha,total:c.total});});const lista=Object.entries(m).sort((a,b)=>b[1].t-a[1].t);const gt=K.reduce((a,c)=>a+c.total,0);const rows=lista.map(([p,d])=>{const pc=gt>0?((d.t/gt)*100).toFixed(1):0;const fechas=d.compras.map(c=>`<div style="font-size:11px;color:${C.muted}">${c.fecha} · ${fmt(c.total)}</div>`).join("");return`<tr><td><b>${h(p)}</b></td><td>${d.n}</td><td style="color:${C.acc};font-weight:700">${fmt(d.t)}</td><td><div style="display:flex;align-items:center;gap:6px"><div style="background:#334155;border-radius:4px;height:6px;width:80px"><div style="width:${pc}%;background:${C.acc};height:6px;border-radius:4px"></div></div><span style="font-size:11px">${pc}%</span></div></td><td>${fechas}</td></tr>`;}).join("");return`<div class="h2">🏭 Compras por Proveedor</div><div class="card"><div class="ov"><table><thead><tr><th>Proveedor</th><th>Órd.</th><th>Total</th><th>%</th><th>Fechas</th></tr></thead><tbody>${rows||`<tr><td colspan="5" class="empty">Sin datos</td></tr>`}${lista.length?`<tr style="background:${C.bg}"><td style="font-weight:700">TOTAL</td><td>${K.length}</td><td style="color:${C.acc};font-weight:700">${fmt(gt)}</td><td>100%</td><td></td></tr>`:""}</tbody></table></div></div>`;}
+function rER(V,K){const ing=V.reduce((a,v)=>a+v.total,0);const co=K.reduce((a,c)=>a+c.total,0);const ut=ing-co;const mg=ing>0?((ut/ing)*100).toFixed(1):0;return`<div class="h2">📈 Estado de Resultados</div><div class="card"><table><tbody>${[["Ingresos",fmt(ing),C.green,true],["Costo de Ventas",fmt(-co),C.red,false],["Utilidad Bruta",fmt(ut),ut>=0?C.green:C.red,true],["Margen Bruto",`${mg}%`,C.yel,true]].map(([l,v,c,b])=>`<tr><td style="padding:7px 10px;font-weight:${b?700:400};border-bottom:1px solid ${C.brd}">${l}</td><td style="padding:7px 10px;text-align:right;color:${c};font-weight:${b?700:400};border-bottom:1px solid ${C.brd}">${v}</td></tr>`).join("")}</tbody></table></div>`;}
+function rFC(V,K){const mE={},mS={};V.forEach(v=>{mE[v.fecha]=(mE[v.fecha]||0)+v.total;});K.forEach(c=>{mS[c.fecha]=(mS[c.fecha]||0)+c.total;});const fs=[...new Set([...Object.keys(mE),...Object.keys(mS)])].sort();let sl=0;const filas=fs.map(f=>{const e=mE[f]||0,s=mS[f]||0;sl+=e-s;return{f,e,s,sl};});const tE=Object.values(mE).reduce((a,b)=>a+b,0),tS=Object.values(mS).reduce((a,b)=>a+b,0);return`<div class="h2">💵 Flujo de Caja</div><div class="grid2" style="margin-bottom:14px">${sc("Entradas",fmt(tE),C.green)}${sc("Salidas",fmt(tS),C.red)}${sc("Saldo Neto",fmt(tE-tS),tE-tS>=0?C.green:C.red)}</div><div class="card"><div class="ov"><table><thead><tr><th>Fecha</th><th>Entradas</th><th>Salidas</th><th>Flujo</th><th>Saldo Acum.</th></tr></thead><tbody>${filas.map(r=>`<tr><td>${r.f}</td><td style="color:${C.green}">${fmt(r.e)}</td><td style="color:${C.red}">${fmt(r.s)}</td><td style="color:${r.e-r.s>=0?C.green:C.red};font-weight:600">${fmt(r.e-r.s)}</td><td style="font-weight:700;color:${r.sl>=0?C.green:C.red}">${fmt(r.sl)}</td></tr>`).join("")||`<tr><td colspan="5" class="empty">Sin movimientos</td></tr>`}</tbody></table></div></div>`;}
+function rCA(){const hoy=new Date();const pend=DB.ventas.filter(v=>v.estado==="pendiente"&&v.vence);const rng=[{l:"Al día",a:-Infinity,b:0,c:C.green},{l:"0-30 días",a:0,b:30,c:C.yel},{l:"31-60 días",a:30,b:60,c:C.acc},{l:"+60 días",a:60,b:Infinity,c:C.red}];const gs=rng.map(r=>{const it=pend.filter(v=>{const d=(hoy-new Date(v.vence))/86400000;return d>r.a&&d<=r.b;});return{...r,it,t:it.reduce((a,v)=>a+v.saldo,0)};});const cards=gs.map(g=>`<div class="stat-card" style="border-left-color:${g.c}"><div class="stat-lbl">${g.l}</div><div class="stat-val" style="color:${g.c}">${fmt(g.t)}</div><div style="font-size:11px;color:${C.muted}">${g.it.length} fact.</div></div>`).join("");const tabs=gs.filter(g=>g.it.length).map(g=>`<div class="card"><div class="h2" style="color:${g.c}">${g.l}</div><div class="ov"><table><thead><tr><th>#</th><th>Cliente</th><th>Vence</th><th>Saldo</th></tr></thead><tbody>${g.it.map(v=>`<tr><td style="font-size:11px">#${v.id.slice(-6).toUpperCase()}</td><td>${h(v.cliente)}</td><td>${v.vence}</td><td style="color:${g.c};font-weight:700">${fmt(v.saldo)}</td></tr>`).join("")}</tbody></table></div></div>`).join("");return`<div class="h2">📅 Antigüedad de Cartera</div><div class="grid2" style="margin-bottom:14px">${cards}</div>${tabs||`<div class="card empty">✅ Sin cartera vencida</div>`}`;}
+function rRO(V){const cats=[...new Set(DB.productos.map(p=>p.categoria).filter(Boolean))];const filtro=`<div style="margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><label class="lbl" style="margin:0">Categoría:</label><select onchange="ST.roLinea=this.value;R()" style="width:200px"><option value="">Todas</option>${cats.map(c=>`<option value="${h(c)}"${ST.roLinea===c?" selected":""}>${h(c)}</option>`).join("")}</select></div>`;const pm={};V.forEach(v=>v.lineas?.forEach(l=>{const k=l.desc;if(!pm[k])pm[k]={q:0,ing:0};pm[k].q+=l.qty;pm[k].ing+=l.qty*l.pu;}));let prods=DB.productos;if(ST.roLinea)prods=prods.filter(p=>p.categoria===ST.roLinea);const rows=prods.map(p=>({...p,vd:pm[p.nombre]?.q||0,ing:pm[p.nombre]?.ing||0})).sort((a,b)=>b.vd-a.vd).map(p=>{const r=p.stock>0?(p.vd/p.stock).toFixed(2):"∞";const rc=parseFloat(r)>1?C.green:parseFloat(r)>0.3?C.yel:C.red;return`<tr><td style="color:${C.muted};font-size:12px">${h(p.sku)}</td><td><b>${h(p.nombre)}</b></td><td>${h(p.categoria)}</td><td>${bdg(p.stock,p.stock<=p.stockMin?C.red:C.green)}</td><td>${p.vd}</td><td style="color:${C.green}">${fmt(p.ing)}</td><td>${fmt(p.stock*p.costo)}</td><td>${bdg(`${r}x`,rc)}</td></tr>`;}).join("");return`<div class="h2">🔄 Rotación de Inventario</div>${filtro}<div class="card"><div class="ov"><table><thead><tr><th>SKU</th><th>Producto</th><th>Cat.</th><th>Stock</th><th>Vendido</th><th>Ingresos</th><th>Valor Stock</th><th>Rotación</th></tr></thead><tbody>${rows||`<tr><td colspan="8" class="empty">Sin productos</td></tr>`}</tbody></table></div></div>`;}
+function rFP(V){const m={};V.forEach(v=>{const f=v.fp;if(!m[f])m[f]={n:0,t:0};m[f].n++;m[f].t+=v.total;});const tot=V.reduce((a,v)=>a+v.total,0);const cols=[C.green,C.acc,C.yel,C.blue,C.red];const cards=Object.entries(m).sort((a,b)=>b[1].t-a[1].t).map(([f,d],i)=>{const p=tot>0?((d.t/tot)*100).toFixed(1):0;return`<div class="stat-card" style="border-left-color:${cols[i%5]}"><div class="stat-lbl" style="text-transform:capitalize">${f}</div><div class="stat-val" style="color:${cols[i%5]}">${fmt(d.t)}</div><div style="font-size:11px;color:${C.muted}">${d.n} fact. · ${p}%</div><div style="margin-top:6px;background:#334155;border-radius:4px;height:5px"><div style="width:${p}%;background:${cols[i%5]};height:5px;border-radius:4px"></div></div></div>`;}).join("");return`<div class="h2">💳 Ventas por Forma de Pago</div><div class="grid2">${cards||`<div class="card empty">Sin ventas</div>`}</div>`;}
+function rRC(V){const opts=DB.clientes.map(c=>`<option value="${h(c.nombre)}"${RCS===c.nombre?" selected":""}>${h(c.nombre)}</option>`).join("");let det="";if(RCS){const vC=V.filter(v=>v.cliente===RCS);const tC=vC.reduce((a,v)=>a+v.total,0),pC=vC.filter(v=>v.estado==="pendiente").reduce((a,v)=>a+v.saldo,0);const pm={};vC.forEach(v=>v.lineas?.forEach(l=>{const k=l.desc;pm[k]=(pm[k]||0)+l.qty;}));det=`<div class="grid2" style="margin-bottom:14px">${sc("Total Comprado",fmt(tC),C.green)}${sc("Saldo Pendiente",fmt(pC),pC>0?C.red:C.green)}${sc("Facturas",vC.length,C.acc)}${sc("Ticket Prom.",vC.length?fmt(tC/vC.length):"$0.00",C.yel)}</div><div class="grid2"><div class="card"><div class="h2">Historial</div><div class="ov"><table><thead><tr><th>#</th><th>Fecha</th><th>Total</th><th>Estado</th></tr></thead><tbody>${[...vC].reverse().map(v=>`<tr><td style="font-size:11px;color:${C.muted}">#${v.id.slice(-6).toUpperCase()}</td><td>${v.fecha}</td><td style="color:${C.green};font-weight:600">${fmt(v.total)}</td><td>${bdg(v.estado,v.estado==="pagado"?C.green:C.yel)}</td></tr>`).join("")||`<tr><td colspan="4" class="empty">Sin facturas</td></tr>`}</tbody></table></div></div><div class="card"><div class="h2">Productos Favoritos</div>${Object.entries(pm).sort((a,b)=>b[1]-a[1]).map(([n,q],i)=>`<div style="display:flex;justify-content:space-between;margin-bottom:7px;align-items:center"><div style="display:flex;gap:8px;align-items:center"><span class="badge" style="background:${C.acc}22;color:${C.acc}">${i+1}</span><span>${h(n)}</span></div><b style="color:${C.acc2}">${q} uds.</b></div>`).join("")||`<div style="color:${C.muted}">Sin datos</div>`}</div></div>`;}return`<div class="h2">👤 Reporte por Cliente</div><div style="margin-bottom:14px"><label class="lbl">Cliente</label><select onchange="RCS=this.value;R()" style="max-width:300px"><option value="">-- Seleccionar --</option>${opts}<option value="Consumidor Final"${RCS==="Consumidor Final"?" selected":""}>Consumidor Final</option></select></div>${det}`;}
+
+// Exponer funciones globalmente
+window.login=login;window.logout=logout;window.exportar=exportar;
+window.goTab=goTab;window.R=R;window.cargarLogs=cargarLogs;
+window.invSave=invSave;window.invCancel=invCancel;window.invEd=invEd;window.invDel=invDel;window.imgProcess=imgProcess;
+window.entSave=entSave;window.entCancel=entCancel;window.entEd=entEd;window.entDel=entDel;
+window.vNueva=vNueva;window.vSelP=vSelP;window.vAddL=vAddL;window.vDelL=vDelL;window.vVer=vVer;window.vGuardar=vGuardar;window.ventaLista=()=>{VV="lista";VD=null;R();};
+window.cNueva=cNueva;window.cSelP=cSelP;window.cAddL=cAddL;window.cDelL=cDelL;window.cVer=cVer;window.cGuardar=cGuardar;window.compraLista=()=>{CV="lista";CD=null;R();};
+window.pagarCxC=pagarCxC;window.pagarCxP=pagarCxP;
+window.ST=ST;window.VF=VF;window.CF=CF;window.IF=IF;window.EF=EF;window.PM=PM;
+window.DB=DB;window.RCS="";
+</script>
+</body>
+</html>
