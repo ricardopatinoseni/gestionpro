@@ -350,6 +350,9 @@ function buildLog(){
 }
 
 // ── Inventario ───────────────────────────────────────────
+// ── Búsqueda global ──────────────────────────────────────
+let busqInv="",busqCli="",busqProv="";
+
 function buildInv(){
   const fs=[["Nombre*","nombre","text"],["SKU","sku","text"],["Categoría","categoria","text"],["Unidad","unidad","text"],["Precio","precio","number"],["Costo","costo","number"],["Stock","stock","number"],["Stock Mín","stockMin","number"]];
   const imgSrc=IF.imagen||"";
@@ -371,17 +374,38 @@ function buildInv(){
       ${bx(IEd!==null?"Actualizar":"Guardar",C.acc,"invSave()")}
       ${IEd!==null?bx("Cancelar",C.muted,"invCancel()"):""}
     </div>`;
-  const rows=DB.productos.map((p,i)=>`<tr>
-    <td>${p.imagen?`<img src="${p.imagen}" style="width:40px;height:40px;object-fit:cover;border-radius:6px">`:`<div class="img-placeholder">📦</div>`}</td>
-    <td style="color:${C.muted};font-size:12px">${h(p.sku)}</td><td><b>${h(p.nombre)}</b></td><td>${h(p.categoria)}</td>
-    <td>${fmt(p.precio)}</td><td>${fmt(p.costo)}</td>
-    <td>${bdg(`${p.stock} ${p.unidad}`,p.stock<=p.stockMin?C.red:C.green)}</td><td>${p.stockMin}</td>
-    <td>${bx("✏️",C.acc,`invEd(${i})`,`margin-right:4px;padding:4px 8px`)}${bx("🗑",C.red,`invDel(${i})`,`padding:4px 8px`)}</td>
-  </tr>`).join("");
+
+  const q=busqInv.toLowerCase();
+  const filtered=DB.productos.filter(p=>
+    p.nombre?.toLowerCase().includes(q)||
+    p.sku?.toLowerCase().includes(q)||
+    p.categoria?.toLowerCase().includes(q)
+  );
+
+  const rows=filtered.map((p,i)=>{
+    const ri=DB.productos.indexOf(p);
+    return`<tr>
+      <td>${p.imagen?`<img src="${p.imagen}" style="width:40px;height:40px;object-fit:cover;border-radius:6px">`:`<div class="img-placeholder">📦</div>`}</td>
+      <td style="color:${C.muted};font-size:12px">${h(p.sku)}</td><td><b>${h(p.nombre)}</b></td><td>${h(p.categoria)}</td>
+      <td>${fmt(p.precio)}</td><td>${fmt(p.costo)}</td>
+      <td>${bdg(`${p.stock} ${p.unidad}`,p.stock<=p.stockMin?C.red:C.green)}</td><td>${p.stockMin}</td>
+      <td>${bx("✏️",C.acc,`invEd(${ri})`,`margin-right:4px;padding:4px 8px`)}${bx("🗑",C.red,`invDel(${ri})`,`padding:4px 8px`)}</td>
+    </tr>`;
+  }).join("");
+
   return`<div class="card"><div class="h2">${IEd!==null?"✏️ Editar":"➕ Nuevo"} Producto</div>${form}</div>
-  <div class="card"><div class="h2">📦 Productos (${DB.productos.length})</div>
-  <div class="ov"><table><thead><tr><th>Img</th><th>SKU</th><th>Nombre</th><th>Cat.</th><th>Precio</th><th>Costo</th><th>Stock</th><th>Mín</th><th></th></tr></thead>
-  <tbody>${rows||`<tr><td colspan="9" class="empty">Sin productos</td></tr>`}</tbody></table></div></div>`;
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+      <div class="h2" style="margin:0">📦 Productos (${filtered.length}/${DB.productos.length})</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input placeholder="🔍 Buscar por nombre, SKU o categoría..." value="${h(busqInv)}" onchange="busqInv=this.value;R()" oninput="busqInv=this.value;R()" style="width:260px">
+        ${busqInv?`<button onclick="busqInv='';R()" style="background:${C.muted};color:#fff;border:none;border-radius:6px;padding:7px 10px;cursor:pointer">✕</button>`:""}
+      </div>
+    </div>
+    <div class="ov"><table><thead><tr><th>Img</th><th>SKU</th><th>Nombre</th><th>Cat.</th><th>Precio</th><th>Costo</th><th>Stock</th><th>Mín</th><th></th></tr></thead>
+    <tbody>${rows||`<tr><td colspan="9" class="empty">Sin resultados</td></tr>`}</tbody></table></div>
+  </div>`;
+}
 }
 
 function imgProcess(input){
@@ -423,6 +447,8 @@ async function invDel(i){
 // ── Entidades ────────────────────────────────────────────
 function buildEnt(tipo){
   const esC=tipo==="clientes";
+  const busq=esC?busqCli:busqProv;
+  const setBusq=esC?"busqCli":"busqProv";
   const fs=esC
     ?[["Nombre*","nombre"],["RUC/Cédula","ruc"],["Email","email"],["Teléfono","telefono"],["Dirección","direccion"],["Crédito días","credito"],["Saldo Inicial ($)","saldoInicial"]]
     :[["Nombre*","nombre"],["RUC","ruc"],["Email","email"],["Teléfono","telefono"],["Dirección","direccion"],["Contacto","contacto"]];
@@ -453,19 +479,38 @@ function buildEnt(tipo){
     ${bx(EEd!==null?"Actualizar":"Guardar",C.acc,`entSave('${tipo}')`)}
     ${EEd!==null?bx("Cancelar",C.muted,"entCancel()"):""}
   </div>`;
-  const rows=DB[tipo].map((e,i)=>{
+
+  const q=busq.toLowerCase();
+  const filtered=DB[tipo].filter(e=>
+    e.nombre?.toLowerCase().includes(q)||
+    e.ruc?.toLowerCase().includes(q)||
+    e.email?.toLowerCase().includes(q)||
+    e.telefono?.toLowerCase().includes(q)
+  );
+
+  const rows=filtered.map(e=>{
+    const i=DB[tipo].indexOf(e);
     const fds=esC&&e.fechas?.filter(f=>f.tipo&&f.fecha).map(f=>bdg(`${f.tipo}: ${f.fecha}`,C.blue)).join(" ")||"";
-    const si=esC&&e.saldoInicial>0?bdg(`$${e.saldoInicial}`,C.red):"";
+    const si=esC&&e.saldoInicial>0?bdg(`${e.saldoInicial}`,C.red):"";
     return`<tr><td><b>${h(e.nombre)}</b></td><td>${h(e.ruc)}</td><td>${h(e.email)}</td><td>${h(e.telefono)}</td>
     <td>${esC?`${e.credito} días`:h(e.contacto)}</td>
     ${esC?`<td>${si||"-"}</td><td>${fds||"-"}</td>`:""}
     <td>${bx("✏️",C.acc,`entEd('${tipo}',${i})`,`margin-right:4px;padding:4px 8px`)}${bx("🗑",C.red,`entDel('${tipo}',${i})`,`padding:4px 8px`)}</td></tr>`;
   }).join("");
+
   const thX=esC?`<th>Saldo Ini.</th><th>Fechas</th>`:"";
   return`<div class="card"><div class="h2">${EEd!==null?"✏️ Editar":"➕ Nuevo"} ${esC?"Cliente":"Proveedor"}</div>${form}</div>
-  <div class="card"><div class="h2">${esC?"👥 Clientes":"🏭 Proveedores"} (${DB[tipo].length})</div>
-  <div class="ov"><table><thead><tr><th>Nombre</th><th>RUC</th><th>Email</th><th>Teléfono</th><th>${esC?"Crédito":"Contacto"}</th>${thX}<th></th></tr></thead>
-  <tbody>${rows||`<tr><td colspan="${esC?8:6}" class="empty">Sin registros</td></tr>`}</tbody></table></div></div>`;
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+      <div class="h2" style="margin:0">${esC?"👥 Clientes":"🏭 Proveedores"} (${filtered.length}/${DB[tipo].length})</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input placeholder="🔍 Buscar por nombre, RUC o teléfono..." value="${h(busq)}" onchange="${setBusq}=this.value;R()" oninput="${setBusq}=this.value;R()" style="width:260px">
+        ${busq?`<button onclick="${setBusq}='';R()" style="background:${C.muted};color:#fff;border:none;border-radius:6px;padding:7px 10px;cursor:pointer">✕</button>`:""}
+      </div>
+    </div>
+    <div class="ov"><table><thead><tr><th>Nombre</th><th>RUC</th><th>Email</th><th>Teléfono</th><th>${esC?"Crédito":"Contacto"}</th>${thX}<th></th></tr></thead>
+    <tbody>${rows||`<tr><td colspan="${esC?8:6}" class="empty">Sin resultados</td></tr>`}</tbody></table></div>
+  </div>`;
 }
 
 async function entSave(tipo){
