@@ -94,8 +94,61 @@ let EEd=null;
 let VV="lista",VD=null,CV="lista",CD=null,RCS="";
 let PM={monto:0,forma:"transferencia"};
 let LOGS=[];
-// Búsqueda
-let busqInv="",busqCli="",busqProv="";
+// Búsqueda sin perder foco
+function setBusqInv(v){busqInv=v;actualizarTablaInv();}
+function setBusqCli(v){busqCli=v;actualizarTablaCli();}
+function setBusqProv(v){busqProv=v;actualizarTablaProov();}
+
+function actualizarTablaInv(){
+  const q=busqInv.toLowerCase();
+  const filtered=DB.productos.filter(p=>!q||p.nombre?.toLowerCase().includes(q)||p.sku?.toLowerCase().includes(q)||p.categoria?.toLowerCase().includes(q));
+  const rows=filtered.map(p=>{
+    const ri=DB.productos.indexOf(p);
+    return`<tr>
+      <td>${p.imagen?`<img src="${p.imagen}" style="width:40px;height:40px;object-fit:cover;border-radius:6px">`:`<div class="img-placeholder">📦</div>`}</td>
+      <td style="color:#94a3b8;font-size:12px">${h(p.sku)}</td><td><b>${h(p.nombre)}</b></td><td>${h(p.categoria)}</td>
+      <td>${fmt(p.precio)}</td><td>${fmt(p.costo)}</td>
+      <td>${bdg(`${p.stock} ${p.unidad}`,p.stock<=p.stockMin?"#ef4444":"#22c55e")}</td><td>${p.stockMin}</td>
+      <td>${bx("✏️","#6366f1",`invEd(${ri})`,`margin-right:4px;padding:4px 8px`)}${bx("🗑","#ef4444",`invDel(${ri})`,`padding:4px 8px`)}</td>
+    </tr>`;
+  }).join("");
+  const el=document.getElementById("tabla-inv");
+  if(el)el.innerHTML=rows||`<tr><td colspan="9" class="empty">Sin resultados</td></tr>`;
+  const cnt=document.getElementById("cnt-inv");
+  if(cnt)cnt.textContent=`📦 Productos (${filtered.length}/${DB.productos.length})`;
+}
+
+function actualizarTablaCli(){
+  const q=busqCli.toLowerCase();
+  const filtered=DB.clientes.filter(e=>!q||e.nombre?.toLowerCase().includes(q)||e.ruc?.toLowerCase().includes(q)||e.email?.toLowerCase().includes(q)||e.telefono?.toLowerCase().includes(q));
+  const rows=filtered.map(e=>{
+    const i=DB.clientes.indexOf(e);
+    const fds=e.fechas?.filter(f=>f.tipo&&f.fecha).map(f=>bdg(`${f.tipo}: ${f.fecha}`,"#38bdf8")).join(" ")||"";
+    const si=e.saldoInicial>0?bdg(`${e.saldoInicial}`,"#ef4444"):"";
+    return`<tr><td><b>${h(e.nombre)}</b></td><td>${h(e.ruc)}</td><td>${h(e.email)}</td><td>${h(e.telefono)}</td>
+    <td>${e.credito} días</td><td>${si||"-"}</td><td>${fds||"-"}</td>
+    <td>${bx("✏️","#6366f1",`entEd('clientes',${i})`,`margin-right:4px;padding:4px 8px`)}${bx("🗑","#ef4444",`entDel('clientes',${i})`,`padding:4px 8px`)}</td></tr>`;
+  }).join("");
+  const el=document.getElementById("tabla-cli");
+  if(el)el.innerHTML=rows||`<tr><td colspan="8" class="empty">Sin resultados</td></tr>`;
+  const cnt=document.getElementById("cnt-cli");
+  if(cnt)cnt.textContent=`👥 Clientes (${filtered.length}/${DB.clientes.length})`;
+}
+
+function actualizarTablaProov(){
+  const q=busqProv.toLowerCase();
+  const filtered=DB.proveedores.filter(e=>!q||e.nombre?.toLowerCase().includes(q)||e.ruc?.toLowerCase().includes(q)||e.email?.toLowerCase().includes(q)||e.telefono?.toLowerCase().includes(q));
+  const rows=filtered.map(e=>{
+    const i=DB.proveedores.indexOf(e);
+    return`<tr><td><b>${h(e.nombre)}</b></td><td>${h(e.ruc)}</td><td>${h(e.email)}</td><td>${h(e.telefono)}</td>
+    <td>${h(e.contacto)}</td>
+    <td>${bx("✏️","#6366f1",`entEd('proveedores',${i})`,`margin-right:4px;padding:4px 8px`)}${bx("🗑","#ef4444",`entDel('proveedores',${i})`,`padding:4px 8px`)}</td></tr>`;
+  }).join("");
+  const el=document.getElementById("tabla-prov");
+  if(el)el.innerHTML=rows||`<tr><td colspan="6" class="empty">Sin resultados</td></tr>`;
+  const cnt=document.getElementById("cnt-prov");
+  if(cnt)cnt.textContent=`🏭 Proveedores (${filtered.length}/${DB.proveedores.length})`;
+}
 
 // Firebase helpers
 async function fsSet(col,id,data){await db.collection(col).doc(id).set(data);}
