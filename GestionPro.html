@@ -93,7 +93,7 @@ let EEd=null;
 let VV="lista",VD=null,CV="lista",CD=null,RCS="";
 let PM={monto:0,forma:"transferencia"};
 let LOGS=[];
-let busqInv="",busqCli="",busqProv="";
+let busqInv="",busqCli="",busqProv="",busqVen="",busqCom="";
 
 async function fsSet(col,id,data){await db.collection(col).doc(id).set(data);}
 async function fsDel(col,id){await db.collection(col).doc(id).delete();}
@@ -199,13 +199,40 @@ function attachBusqueda(){
   const inp=document.getElementById("inp-busq");
   if(!inp)return;
   inp.addEventListener("input",function(){
-    const tab=ST.tab;
-    if(tab==="Inventario"){busqInv=this.value;const f=filtrarInv();refreshTabla("tbody-inv",rowsInv(f));refreshCnt("cnt-inv",`📦 Productos (${f.length}/${DB.productos.length})`);}
-    else if(tab==="Clientes"){busqCli=this.value;const f=filtrarEnt("clientes");refreshTabla("tbody-cli",rowsEnt("clientes",f));refreshCnt("cnt-cli",`👥 Clientes (${f.length}/${DB.clientes.length})`);}
-    else if(tab==="Proveedores"){busqProv=this.value;const f=filtrarEnt("proveedores");refreshTabla("tbody-prov",rowsEnt("proveedores",f));refreshCnt("cnt-prov",`🏭 Proveedores (${f.length}/${DB.proveedores.length})`);}
+    const tab=ST.tab;const q=this.value;
+    if(tab==="Inventario"){
+      busqInv=q;const f=filtrarInv();
+      refreshTabla("tbody-inv",rowsInv(f));
+      refreshCnt("cnt-inv",`📦 Productos (${f.length}/${DB.productos.length})`);
+    }else if(tab==="Clientes"){
+      busqCli=q;const f=filtrarEnt("clientes");
+      refreshTabla("tbody-cli",rowsEnt("clientes",f));
+      refreshCnt("cnt-cli",`👥 Clientes (${f.length}/${DB.clientes.length})`);
+    }else if(tab==="Proveedores"){
+      busqProv=q;const f=filtrarEnt("proveedores");
+      refreshTabla("tbody-prov",rowsEnt("proveedores",f));
+      refreshCnt("cnt-prov",`🏭 Proveedores (${f.length}/${DB.proveedores.length})`);
+    }else if(tab==="Ventas"){
+      busqVen=q;
+      const ql=q.toLowerCase();
+      const filtered=[...DB.ventas].filter(v=>!ql||v.cliente?.toLowerCase().includes(ql)||(v.lineas||[]).some(l=>l.desc?.toLowerCase().includes(ql)));
+      const rows=filtered.reverse().map(v=>{
+        const ri=DB.ventas.indexOf(v);
+        return`<tr><td style="color:#94a3b8;font-size:11px">#${v.id.slice(-6).toUpperCase()}</td><td>${v.fecha}</td><td>${h(v.cliente)}</td><td>${v.fp}</td><td style="color:#22c55e;font-weight:600">${fmt(v.total)}</td><td>${bdg(v.estado,v.estado==="pagado"?"#22c55e":"#f59e0b")}</td><td>${bx("Ver","#6366f1",`vVer(${ri})`,`padding:4px 8px`)}</td></tr>`;
+      }).join("")||`<tr><td colspan="7" class="empty">Sin resultados</td></tr>`;
+      refreshTabla("tbody-ven",rows);
+      const h2=document.querySelector(".h2");if(h2)h2.textContent=`🧾 Ventas (${filtered.length}/${DB.ventas.length})`;
+    }else if(tab==="Compras"){
+      busqCom=q;
+      const ql=q.toLowerCase();
+      const filtered=[...DB.compras].filter(c=>!ql||c.proveedor?.toLowerCase().includes(ql)||(c.lineas||[]).some(l=>l.desc?.toLowerCase().includes(ql)));
+      const rows=filtered.reverse().map(c=>{
+        const ri=DB.compras.indexOf(c);
+        return`<tr><td style="color:#94a3b8;font-size:11px">#${c.id.slice(-6).toUpperCase()}</td><td>${c.fecha}</td><td>${h(c.proveedor)}</td><td>${c.fp}</td><td style="color:#6366f1;font-weight:600">${fmt(c.total)}</td><td>${bdg(c.estado,c.estado==="pagado"?"#22c55e":"#f59e0b")}</td><td>${bx("Ver","#6366f1",`cVer(${ri})`,`padding:4px 8px`)}</td></tr>`;
+      }).join("")||`<tr><td colspan="7" class="empty">Sin resultados</td></tr>`;
+      refreshTabla("tbody-com",rows);
+    }
   });
-  inp.focus();
-  // mantener cursor al final
   const v=inp.value;inp.value="";inp.value=v;
 }
 
@@ -224,7 +251,7 @@ function R(){
     (ST.tab==="Reportes"?buildRep():"")+
     (ST.tab==="Actividad"?buildLog():"")+
     `</div>`;
-  if(["Inventario","Clientes","Proveedores"].includes(ST.tab))attachBusqueda();
+  if(["Inventario","Clientes","Proveedores","Ventas","Compras"].includes(ST.tab))attachBusqueda();
 }
 
 const TABS=[{k:"Dashboard",i:"🏠"},{k:"Inventario",i:"📦"},{k:"Clientes",i:"👥"},{k:"Proveedores",i:"🏭"},{k:"Ventas",i:"🧾"},{k:"Compras",i:"🛒"},{k:"CxC",i:"💰"},{k:"CxP",i:"💳"},{k:"Reportes",i:"📊"},{k:"Actividad",i:"📋"}];
@@ -251,7 +278,7 @@ function buildMenu(){
     <div class="menu-grid">${btns}</div>
   </div></div>`;
 }
-function goTab(t){ST.tab=t;ST.menu=false;ST.cxcIdx=-1;ST.cxpIdx=-1;busqInv="";busqCli="";busqProv="";if(t==="Actividad")cargarLogs().then(R);else R();}
+function goTab(t){ST.tab=t;ST.menu=false;ST.cxcIdx=-1;ST.cxpIdx=-1;busqInv="";busqCli="";busqProv="";busqVen="";busqCom="";if(t==="Actividad")cargarLogs().then(R);else R();}
 
 function checkAlarmas(){
   const hoy=new Date();hoy.setHours(0,0,0,0);const alertas=[];
@@ -450,9 +477,28 @@ async function entDel(tipo,i){
 
 function buildVentas(){
   if(VV==="nueva")return buildVN();if(VD!==null)return buildVDet(VD);
-  const rows=[...DB.ventas].reverse().map((v,i)=>`<tr><td style="color:${C.muted};font-size:11px">#${v.id.slice(-6).toUpperCase()}</td><td>${v.fecha}</td><td>${h(v.cliente)}</td><td>${v.fp}</td><td style="color:${C.green};font-weight:600">${fmt(v.total)}</td><td>${bdg(v.estado,v.estado==="pagado"?C.green:C.yel)}</td><td>${bx("Ver",C.acc,`vVer(${DB.ventas.length-1-i})`,`padding:4px 8px`)}</td></tr>`).join("");
-  return`<div class="row-between"><div class="h2">🧾 Ventas (${DB.ventas.length})</div>${bx("+ Nueva Venta",C.green,"vNueva()")}</div>
-  <div class="card"><div class="ov"><table><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Forma Pago</th><th>Total</th><th>Estado</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="7" class="empty">Sin ventas</td></tr>`}</tbody></table></div></div>`;
+  const q=busqVen.toLowerCase();
+  const filtered=[...DB.ventas].reverse().filter(v=>
+    !q||v.cliente?.toLowerCase().includes(q)||
+    v.id?.toLowerCase().includes(q)||
+    (v.lineas||[]).some(l=>l.desc?.toLowerCase().includes(q))
+  );
+  const rows=filtered.map((v,i)=>{
+    const ri=DB.ventas.indexOf(v);
+    return`<tr><td style="color:${C.muted};font-size:11px">#${v.id.slice(-6).toUpperCase()}</td><td>${v.fecha}</td><td>${h(v.cliente)}</td><td>${v.fp}</td><td style="color:${C.green};font-weight:600">${fmt(v.total)}</td><td>${bdg(v.estado,v.estado==="pagado"?C.green:C.yel)}</td><td>${bx("Ver",C.acc,`vVer(${DB.ventas.length-1-(DB.ventas.length-1-ri)})`,`padding:4px 8px`)}</td></tr>`;
+  }).join("");
+  return`<div class="row-between">
+    <div class="h2">🧾 Ventas (${filtered.length}/${DB.ventas.length})</div>
+    ${bx("+ Nueva Venta",C.green,"vNueva()")}
+  </div>
+  <div class="card" style="margin-bottom:10px">
+    <div class="sbx">
+      <input id="inp-busq" placeholder="🔍 Cliente o producto..." value="${h(busqVen)}" style="width:260px">
+      ${busqVen?`<button onclick="busqVen='';R()" style="background:${C.muted};color:#fff;border:none;border-radius:6px;padding:7px 10px;cursor:pointer">✕</button>`:""}
+    </div>
+  </div>
+  <div class="card"><div class="ov"><table><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Forma Pago</th><th>Total</th><th>Estado</th><th></th></tr></thead>
+  <tbody id="tbody-ven">${rows||`<tr><td colspan="7" class="empty">Sin resultados</td></tr>`}</tbody></table></div></div>`;
 }
 function buildVN(){
   const total=VF.lns.reduce((a,l)=>a+l.qty*l.pu,0);
@@ -510,9 +556,28 @@ async function vGuardar(){
 
 function buildCompras(){
   if(CV==="nueva")return buildCN();if(CD!==null)return buildCDet(CD);
-  const rows=[...DB.compras].reverse().map((c,i)=>`<tr><td style="color:${C.muted};font-size:11px">#${c.id.slice(-6).toUpperCase()}</td><td>${c.fecha}</td><td>${h(c.proveedor)}</td><td>${c.fp}</td><td style="color:${C.acc};font-weight:600">${fmt(c.total)}</td><td>${bdg(c.estado,c.estado==="pagado"?C.green:C.yel)}</td><td>${bx("Ver",C.acc,`cVer(${DB.compras.length-1-i})`,`padding:4px 8px`)}</td></tr>`).join("");
-  return`<div class="row-between"><div class="h2">🛒 Compras (${DB.compras.length})</div>${bx("+ Nueva Compra",C.acc,"cNueva()")}</div>
-  <div class="card"><div class="ov"><table><thead><tr><th>#</th><th>Fecha</th><th>Proveedor</th><th>Forma Pago</th><th>Total</th><th>Estado</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="7" class="empty">Sin compras</td></tr>`}</tbody></table></div></div>`;
+  const q=busqCom.toLowerCase();
+  const filtered=[...DB.compras].reverse().filter(c=>
+    !q||c.proveedor?.toLowerCase().includes(q)||
+    c.id?.toLowerCase().includes(q)||
+    (c.lineas||[]).some(l=>l.desc?.toLowerCase().includes(q))
+  );
+  const rows=filtered.map(c=>{
+    const ri=DB.compras.indexOf(c);
+    return`<tr><td style="color:${C.muted};font-size:11px">#${c.id.slice(-6).toUpperCase()}</td><td>${c.fecha}</td><td>${h(c.proveedor)}</td><td>${c.fp}</td><td style="color:${C.acc};font-weight:600">${fmt(c.total)}</td><td>${bdg(c.estado,c.estado==="pagado"?C.green:C.yel)}</td><td>${bx("Ver",C.acc,`cVer(${ri})`,`padding:4px 8px`)}</td></tr>`;
+  }).join("");
+  return`<div class="row-between">
+    <div class="h2">🛒 Compras (${filtered.length}/${DB.compras.length})</div>
+    ${bx("+ Nueva Compra",C.acc,"cNueva()")}
+  </div>
+  <div class="card" style="margin-bottom:10px">
+    <div class="sbx">
+      <input id="inp-busq" placeholder="🔍 Proveedor o producto..." value="${h(busqCom)}" style="width:260px">
+      ${busqCom?`<button onclick="busqCom='';R()" style="background:${C.muted};color:#fff;border:none;border-radius:6px;padding:7px 10px;cursor:pointer">✕</button>`:""}
+    </div>
+  </div>
+  <div class="card"><div class="ov"><table><thead><tr><th>#</th><th>Fecha</th><th>Proveedor</th><th>Forma Pago</th><th>Total</th><th>Estado</th><th></th></tr></thead>
+  <tbody id="tbody-com">${rows||`<tr><td colspan="7" class="empty">Sin resultados</td></tr>`}</tbody></table></div></div>`;
 }
 function buildCN(){
   const total=CF.lns.reduce((a,l)=>a+l.qty*l.costo,0);
