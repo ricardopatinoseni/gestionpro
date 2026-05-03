@@ -53,8 +53,8 @@ td{padding:7px 10px;font-size:13px;border-bottom:1px solid #334155;vertical-alig
 .login-sub{font-size:13px;color:#94a3b8;text-align:center;margin-bottom:24px}
 .spin{display:inline-block;width:16px;height:16px;border:2px solid #ffffff44;border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
-.search-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.search-bar input{width:260px}
+.sbx{display:flex;gap:8px;align-items:center}
+.sbx input{width:240px}
 </style>
 </head>
 <body>
@@ -81,7 +81,6 @@ const bx=(l,c,fn,ex="")=>`<button onclick="${fn}" style="background:${c};color:#
 const bdg=(t,c)=>`<span class="badge" style="background:${c}22;color:${c}">${h(String(t))}</span>`;
 function defDesde(){const d=new Date();d.setDate(1);return d.toISOString().split("T")[0];}
 
-// Estado
 let CU=null;
 let ST={tab:"Dashboard",menu:false,sub:"dv",rD:defDesde(),rH:tod(),cxcIdx:-1,cxpIdx:-1,roLinea:""};
 let DB={productos:[],clientes:[],proveedores:[],ventas:[],compras:[]};
@@ -94,85 +93,25 @@ let EEd=null;
 let VV="lista",VD=null,CV="lista",CD=null,RCS="";
 let PM={monto:0,forma:"transferencia"};
 let LOGS=[];
-// Búsqueda sin perder foco
-function setBusqInv(v){busqInv=v;actualizarTablaInv();}
-function setBusqCli(v){busqCli=v;actualizarTablaCli();}
-function setBusqProv(v){busqProv=v;actualizarTablaProov();}
+let busqInv="",busqCli="",busqProv="";
 
-function actualizarTablaInv(){
-  const q=busqInv.toLowerCase();
-  const filtered=DB.productos.filter(p=>!q||p.nombre?.toLowerCase().includes(q)||p.sku?.toLowerCase().includes(q)||p.categoria?.toLowerCase().includes(q));
-  const rows=filtered.map(p=>{
-    const ri=DB.productos.indexOf(p);
-    return`<tr>
-      <td>${p.imagen?`<img src="${p.imagen}" style="width:40px;height:40px;object-fit:cover;border-radius:6px">`:`<div class="img-placeholder">📦</div>`}</td>
-      <td style="color:#94a3b8;font-size:12px">${h(p.sku)}</td><td><b>${h(p.nombre)}</b></td><td>${h(p.categoria)}</td>
-      <td>${fmt(p.precio)}</td><td>${fmt(p.costo)}</td>
-      <td>${bdg(`${p.stock} ${p.unidad}`,p.stock<=p.stockMin?"#ef4444":"#22c55e")}</td><td>${p.stockMin}</td>
-      <td>${bx("✏️","#6366f1",`invEd(${ri})`,`margin-right:4px;padding:4px 8px`)}${bx("🗑","#ef4444",`invDel(${ri})`,`padding:4px 8px`)}</td>
-    </tr>`;
-  }).join("");
-  const el=document.getElementById("tabla-inv");
-  if(el)el.innerHTML=rows||`<tr><td colspan="9" class="empty">Sin resultados</td></tr>`;
-  const cnt=document.getElementById("cnt-inv");
-  if(cnt)cnt.textContent=`📦 Productos (${filtered.length}/${DB.productos.length})`;
-}
-
-function actualizarTablaCli(){
-  const q=busqCli.toLowerCase();
-  const filtered=DB.clientes.filter(e=>!q||e.nombre?.toLowerCase().includes(q)||e.ruc?.toLowerCase().includes(q)||e.email?.toLowerCase().includes(q)||e.telefono?.toLowerCase().includes(q));
-  const rows=filtered.map(e=>{
-    const i=DB.clientes.indexOf(e);
-    const fds=e.fechas?.filter(f=>f.tipo&&f.fecha).map(f=>bdg(`${f.tipo}: ${f.fecha}`,"#38bdf8")).join(" ")||"";
-    const si=e.saldoInicial>0?bdg(`${e.saldoInicial}`,"#ef4444"):"";
-    return`<tr><td><b>${h(e.nombre)}</b></td><td>${h(e.ruc)}</td><td>${h(e.email)}</td><td>${h(e.telefono)}</td>
-    <td>${e.credito} días</td><td>${si||"-"}</td><td>${fds||"-"}</td>
-    <td>${bx("✏️","#6366f1",`entEd('clientes',${i})`,`margin-right:4px;padding:4px 8px`)}${bx("🗑","#ef4444",`entDel('clientes',${i})`,`padding:4px 8px`)}</td></tr>`;
-  }).join("");
-  const el=document.getElementById("tabla-cli");
-  if(el)el.innerHTML=rows||`<tr><td colspan="8" class="empty">Sin resultados</td></tr>`;
-  const cnt=document.getElementById("cnt-cli");
-  if(cnt)cnt.textContent=`👥 Clientes (${filtered.length}/${DB.clientes.length})`;
-}
-
-function actualizarTablaProov(){
-  const q=busqProv.toLowerCase();
-  const filtered=DB.proveedores.filter(e=>!q||e.nombre?.toLowerCase().includes(q)||e.ruc?.toLowerCase().includes(q)||e.email?.toLowerCase().includes(q)||e.telefono?.toLowerCase().includes(q));
-  const rows=filtered.map(e=>{
-    const i=DB.proveedores.indexOf(e);
-    return`<tr><td><b>${h(e.nombre)}</b></td><td>${h(e.ruc)}</td><td>${h(e.email)}</td><td>${h(e.telefono)}</td>
-    <td>${h(e.contacto)}</td>
-    <td>${bx("✏️","#6366f1",`entEd('proveedores',${i})`,`margin-right:4px;padding:4px 8px`)}${bx("🗑","#ef4444",`entDel('proveedores',${i})`,`padding:4px 8px`)}</td></tr>`;
-  }).join("");
-  const el=document.getElementById("tabla-prov");
-  if(el)el.innerHTML=rows||`<tr><td colspan="6" class="empty">Sin resultados</td></tr>`;
-  const cnt=document.getElementById("cnt-prov");
-  if(cnt)cnt.textContent=`🏭 Proveedores (${filtered.length}/${DB.proveedores.length})`;
-}
-
-// Firebase helpers
 async function fsSet(col,id,data){await db.collection(col).doc(id).set(data);}
 async function fsDel(col,id){await db.collection(col).doc(id).delete();}
 async function fsGetAll(col){const snap=await db.collection(col).get();return snap.docs.map(d=>({id:d.id,...d.data()}));}
 async function logAct(accion,detalle=""){
   try{await db.collection("logs").add({usuario:CU?.email||"?",accion,detalle,fecha:tod(),hora:new Date().toLocaleTimeString("es-EC"),ts:firebase.firestore.FieldValue.serverTimestamp()});}
-  catch(e){console.error("Log:",e);}
+  catch(e){}
 }
 async function cargarTodo(){
-  const [productos,clientes,proveedores,ventas,compras]=await Promise.all([
-    fsGetAll("productos"),fsGetAll("clientes"),fsGetAll("proveedores"),fsGetAll("ventas"),fsGetAll("compras")
-  ]);
+  const [productos,clientes,proveedores,ventas,compras]=await Promise.all([fsGetAll("productos"),fsGetAll("clientes"),fsGetAll("proveedores"),fsGetAll("ventas"),fsGetAll("compras")]);
   DB={productos,clientes,proveedores,ventas,compras};
 }
 async function cargarLogs(){
-  try{const snap=await db.collection("logs").orderBy("ts","desc").limit(100).get();LOGS=snap.docs.map(d=>({id:d.id,...d.data()}));}
-  catch(e){LOGS=[];}
+  try{const snap=await db.collection("logs").orderBy("ts","desc").limit(100).get();LOGS=snap.docs.map(d=>({id:d.id,...d.data()}));}catch(e){LOGS=[];}
 }
 
-// Auth
 auth.onAuthStateChanged(async user=>{
-  if(user){CU=user;await cargarTodo();R();}
-  else{CU=null;renderLogin();}
+  if(user){CU=user;await cargarTodo();R();}else{CU=null;renderLogin();}
 });
 
 function renderLogin(){
@@ -191,8 +130,7 @@ function renderLogin(){
 async function doLogin(){
   const email=document.getElementById("lemail").value.trim();
   const pass=document.getElementById("lpass").value;
-  const btn=document.getElementById("lbtn");
-  const err=document.getElementById("lerr");
+  const btn=document.getElementById("lbtn");const err=document.getElementById("lerr");
   err.textContent="";btn.innerHTML=`<span class="spin"></span>Ingresando...`;btn.disabled=true;
   try{await auth.signInWithEmailAndPassword(email,pass);await logAct("LOGIN","Inicio de sesión");}
   catch(e){err.textContent="Correo o contraseña incorrectos.";btn.innerHTML="Ingresar";btn.disabled=false;}
@@ -202,9 +140,8 @@ async function doLogout(){await logAct("LOGOUT","Cierre de sesión");await auth.
 function exportar(){
   const b=new Blob([JSON.stringify(DB,null,2)],{type:"application/json"});
   const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download=`gestionpro_${tod()}.json`;a.click();URL.revokeObjectURL(u);
-  logAct("BACKUP","Exportación de datos");
+  logAct("BACKUP","Exportación");
 }
-
 async function handleImport(input){
   const f=input.files[0];if(!f)return;
   if(!confirm("¿Importar datos?"))return;
@@ -221,7 +158,57 @@ async function handleImport(input){
   r.readAsText(f);input.value="";
 }
 
-// Render
+// ── Búsqueda: actualiza solo el tbody sin redibujar la página ──
+function filtrarInv(){
+  const q=busqInv.toLowerCase();
+  return DB.productos.filter(p=>!q||p.nombre?.toLowerCase().includes(q)||p.sku?.toLowerCase().includes(q)||p.categoria?.toLowerCase().includes(q));
+}
+function filtrarEnt(tipo){
+  const q=(tipo==="clientes"?busqCli:busqProv).toLowerCase();
+  return DB[tipo].filter(e=>!q||e.nombre?.toLowerCase().includes(q)||e.ruc?.toLowerCase().includes(q)||e.email?.toLowerCase().includes(q)||e.telefono?.toLowerCase().includes(q));
+}
+function rowsInv(lista){
+  return lista.map(p=>{
+    const ri=DB.productos.indexOf(p);
+    return`<tr>
+      <td>${p.imagen?`<img src="${p.imagen}" style="width:40px;height:40px;object-fit:cover;border-radius:6px">`:`<div class="img-placeholder">📦</div>`}</td>
+      <td style="color:${C.muted};font-size:12px">${h(p.sku)}</td><td><b>${h(p.nombre)}</b></td><td>${h(p.categoria)}</td>
+      <td>${fmt(p.precio)}</td><td>${fmt(p.costo)}</td>
+      <td>${bdg(`${p.stock} ${p.unidad}`,p.stock<=p.stockMin?C.red:C.green)}</td><td>${p.stockMin}</td>
+      <td>${bx("✏️",C.acc,`invEd(${ri})`,`margin-right:4px;padding:4px 8px`)}${bx("🗑",C.red,`invDel(${ri})`,`padding:4px 8px`)}</td>
+    </tr>`;
+  }).join("")||`<tr><td colspan="9" class="empty">Sin resultados</td></tr>`;
+}
+function rowsEnt(tipo,lista){
+  const esC=tipo==="clientes";
+  return lista.map(e=>{
+    const i=DB[tipo].indexOf(e);
+    const fds=esC&&e.fechas?.filter(f=>f.tipo&&f.fecha).map(f=>bdg(`${f.tipo}: ${f.fecha}`,C.blue)).join(" ")||"";
+    const si=esC&&e.saldoInicial>0?bdg(`$${e.saldoInicial}`,C.red):"";
+    return`<tr><td><b>${h(e.nombre)}</b></td><td>${h(e.ruc)}</td><td>${h(e.email)}</td><td>${h(e.telefono)}</td>
+    <td>${esC?`${e.credito} días`:h(e.contacto)}</td>
+    ${esC?`<td>${si||"-"}</td><td>${fds||"-"}</td>`:""}
+    <td>${bx("✏️",C.acc,`entEd('${tipo}',${i})`,`margin-right:4px;padding:4px 8px`)}${bx("🗑",C.red,`entDel('${tipo}',${i})`,`padding:4px 8px`)}</td></tr>`;
+  }).join("")||`<tr><td colspan="${esC?8:6}" class="empty">Sin resultados</td></tr>`;
+}
+function refreshTabla(id,html){const el=document.getElementById(id);if(el)el.innerHTML=html;}
+function refreshCnt(id,txt){const el=document.getElementById(id);if(el)el.textContent=txt;}
+
+// Attach búsqueda después de render (sin oninput en el HTML)
+function attachBusqueda(){
+  const inp=document.getElementById("inp-busq");
+  if(!inp)return;
+  inp.addEventListener("input",function(){
+    const tab=ST.tab;
+    if(tab==="Inventario"){busqInv=this.value;const f=filtrarInv();refreshTabla("tbody-inv",rowsInv(f));refreshCnt("cnt-inv",`📦 Productos (${f.length}/${DB.productos.length})`);}
+    else if(tab==="Clientes"){busqCli=this.value;const f=filtrarEnt("clientes");refreshTabla("tbody-cli",rowsEnt("clientes",f));refreshCnt("cnt-cli",`👥 Clientes (${f.length}/${DB.clientes.length})`);}
+    else if(tab==="Proveedores"){busqProv=this.value;const f=filtrarEnt("proveedores");refreshTabla("tbody-prov",rowsEnt("proveedores",f));refreshCnt("cnt-prov",`🏭 Proveedores (${f.length}/${DB.proveedores.length})`);}
+  });
+  inp.focus();
+  // mantener cursor al final
+  const v=inp.value;inp.value="";inp.value=v;
+}
+
 function R(){
   document.getElementById("app").innerHTML=
     buildHdr()+(ST.menu?buildMenu():"")+
@@ -237,6 +224,7 @@ function R(){
     (ST.tab==="Reportes"?buildRep():"")+
     (ST.tab==="Actividad"?buildLog():"")+
     `</div>`;
+  if(["Inventario","Clientes","Proveedores"].includes(ST.tab))attachBusqueda();
 }
 
 const TABS=[{k:"Dashboard",i:"🏠"},{k:"Inventario",i:"📦"},{k:"Clientes",i:"👥"},{k:"Proveedores",i:"🏭"},{k:"Ventas",i:"🧾"},{k:"Compras",i:"🛒"},{k:"CxC",i:"💰"},{k:"CxP",i:"💳"},{k:"Reportes",i:"📊"},{k:"Actividad",i:"📋"}];
@@ -252,7 +240,6 @@ function buildHdr(){
     </div>
   </div>`;
 }
-
 function buildMenu(){
   const btns=TABS.map(t=>`<button class="menu-btn${ST.tab===t.k?" active":""}" onclick="goTab('${t.k}')"><span class="ico">${t.i}</span><span class="lbl2">${t.k}</span></button>`).join("");
   return`<div class="menu-overlay" onclick="ST.menu=false;R()"><div class="menu-panel" onclick="event.stopPropagation()">
@@ -264,10 +251,8 @@ function buildMenu(){
     <div class="menu-grid">${btns}</div>
   </div></div>`;
 }
+function goTab(t){ST.tab=t;ST.menu=false;ST.cxcIdx=-1;ST.cxpIdx=-1;busqInv="";busqCli="";busqProv="";if(t==="Actividad")cargarLogs().then(R);else R();}
 
-function goTab(t){ST.tab=t;ST.menu=false;ST.cxcIdx=-1;ST.cxpIdx=-1;if(t==="Actividad")cargarLogs().then(R);else R();}
-
-// Alarmas
 function checkAlarmas(){
   const hoy=new Date();hoy.setHours(0,0,0,0);const alertas=[];
   DB.clientes.forEach(cli=>{
@@ -287,22 +272,17 @@ function checkAlarmas(){
   });
   return alertas;
 }
-
 function buildAlarmas(){
   const alertas=checkAlarmas();if(!alertas.length)return"";
   const items=alertas.map(a=>`<div style="font-size:13px;margin-bottom:4px">🔔 <b>${h(a.cliente)}</b> — ${h(a.tipo)}: ${a.fecha} <span style="color:${C.yel};font-weight:700">${a.dias===0?"¡Hoy!":a.dias===1?"Mañana":`en ${a.dias} días`}</span></div>`).join("");
   return`<div class="alert-banner"><div style="font-weight:700;color:${C.yel};margin-bottom:6px">⚠ Fechas Importantes</div>${items}</div>`;
 }
 
-// Dashboard
 function buildDash(){
-  const tv=DB.ventas.reduce((a,v)=>a+v.total,0);
-  const tc=DB.compras.reduce((a,c)=>a+c.total,0);
-  const cxcP=DB.ventas.filter(v=>v.estado==="pendiente");
-  const cxpP=DB.compras.filter(c=>c.estado==="pendiente");
+  const tv=DB.ventas.reduce((a,v)=>a+v.total,0);const tc=DB.compras.reduce((a,c)=>a+c.total,0);
+  const cxcP=DB.ventas.filter(v=>v.estado==="pendiente");const cxpP=DB.compras.filter(c=>c.estado==="pendiente");
   const sb=DB.productos.filter(p=>p.stock<=p.stockMin);
-  const tu=DB.productos.reduce((a,p)=>a+p.stock,0);
-  const vs=DB.productos.reduce((a,p)=>a+(p.stock*p.costo),0);
+  const tu=DB.productos.reduce((a,p)=>a+p.stock,0);const vs=DB.productos.reduce((a,p)=>a+(p.stock*p.costo),0);
   const rv=[...DB.ventas].reverse().slice(0,5).map(v=>`<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px"><span style="color:${C.muted}">${v.fecha} · ${h(v.cliente)}</span><b style="color:${C.green}">${fmt(v.total)}</b></div>`).join("")||`<div style="color:${C.muted}">Sin ventas</div>`;
   const rc=cxcP.map(v=>`<tr><td>${h(v.cliente)}</td><td>${fmt(v.total)}</td><td style="color:${C.yel};font-weight:700">${fmt(v.saldo)}</td><td>${v.vence||"-"}</td></tr>`).join("");
   const rp=cxpP.map(c=>`<tr><td>${h(c.proveedor)}</td><td>${fmt(c.total)}</td><td style="color:${C.red};font-weight:700">${fmt(c.saldo)}</td><td>${c.vence||"-"}</td></tr>`).join("");
@@ -323,7 +303,6 @@ function buildDash(){
   </div>`;
 }
 
-// Log
 function buildLog(){
   const rows=LOGS.map(l=>`<tr><td style="color:${C.muted};font-size:11px">${l.fecha||""} ${l.hora||""}</td><td>${bdg(l.usuario,C.acc)}</td><td><b>${h(l.accion)}</b></td><td style="color:${C.muted}">${h(l.detalle)}</td></tr>`).join("");
   return`<div class="h2">📋 Registro de Actividad</div>
@@ -332,7 +311,6 @@ function buildLog(){
   <tbody>${rows||`<tr><td colspan="4" class="empty">Sin actividad</td></tr>`}</tbody></table></div></div>`;
 }
 
-// Inventario con búsqueda
 function buildInv(){
   const fs=[["Nombre*","nombre","text"],["SKU","sku","text"],["Categoría","categoria","text"],["Unidad","unidad","text"],["Precio","precio","number"],["Costo","costo","number"],["Stock","stock","number"],["Stock Mín","stockMin","number"]];
   const imgSrc=IF.imagen||"";
@@ -354,29 +332,18 @@ function buildInv(){
       ${bx(IEd!==null?"Actualizar":"Guardar",C.acc,"invSave()")}
       ${IEd!==null?bx("Cancelar",C.muted,"invCancel()"):""}
     </div>`;
-  const q=busqInv.toLowerCase();
-  const filtered=DB.productos.filter(p=>!q||p.nombre?.toLowerCase().includes(q)||p.sku?.toLowerCase().includes(q)||p.categoria?.toLowerCase().includes(q));
-  const rows=filtered.map(p=>{
-    const ri=DB.productos.indexOf(p);
-    return`<tr>
-      <td>${p.imagen?`<img src="${p.imagen}" style="width:40px;height:40px;object-fit:cover;border-radius:6px">`:`<div class="img-placeholder">📦</div>`}</td>
-      <td style="color:${C.muted};font-size:12px">${h(p.sku)}</td><td><b>${h(p.nombre)}</b></td><td>${h(p.categoria)}</td>
-      <td>${fmt(p.precio)}</td><td>${fmt(p.costo)}</td>
-      <td>${bdg(`${p.stock} ${p.unidad}`,p.stock<=p.stockMin?C.red:C.green)}</td><td>${p.stockMin}</td>
-      <td>${bx("✏️",C.acc,`invEd(${ri})`,`margin-right:4px;padding:4px 8px`)}${bx("🗑",C.red,`invDel(${ri})`,`padding:4px 8px`)}</td>
-    </tr>`;
-  }).join("");
+  const filtered=filtrarInv();
   return`<div class="card"><div class="h2">${IEd!==null?"✏️ Editar":"➕ Nuevo"} Producto</div>${form}</div>
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-      <div class="h2" style="margin:0">📦 Productos (${filtered.length}/${DB.productos.length})</div>
-      <div class="search-bar">
-        <input placeholder="🔍 Nombre, SKU o categoría..." value="${h(busqInv)}" oninput="busqInv=this.value;R()" style="width:240px">
-        ${busqInv?`<button onclick="busqInv='';R()" style="background:${C.muted};color:#fff;border:none;border-radius:6px;padding:7px 10px;cursor:pointer;font-size:13px">✕</button>`:""}
+      <div class="h2" style="margin:0" id="cnt-inv">📦 Productos (${filtered.length}/${DB.productos.length})</div>
+      <div class="sbx">
+        <input id="inp-busq" placeholder="🔍 Nombre, SKU o categoría..." value="${h(busqInv)}" style="width:240px">
+        ${busqInv?`<button onclick="busqInv='';R()" style="background:${C.muted};color:#fff;border:none;border-radius:6px;padding:7px 10px;cursor:pointer">✕</button>`:""}
       </div>
     </div>
     <div class="ov"><table><thead><tr><th>Img</th><th>SKU</th><th>Nombre</th><th>Cat.</th><th>Precio</th><th>Costo</th><th>Stock</th><th>Mín</th><th></th></tr></thead>
-    <tbody>${rows||`<tr><td colspan="9" class="empty">Sin resultados</td></tr>`}</tbody></table></div>
+    <tbody id="tbody-inv">${rowsInv(filtered)}</tbody></table></div>
   </div>`;
 }
 
@@ -386,25 +353,22 @@ function imgProcess(input){
   reader.onload=ev=>{
     const img=new Image();
     img.onload=()=>{
-      const canvas=document.createElement("canvas");
-      const MAX=400;let w=img.width,hh=img.height;
+      const canvas=document.createElement("canvas");const MAX=400;let w=img.width,hh=img.height;
       if(w>hh){if(w>MAX){hh=Math.round(hh*(MAX/w));w=MAX;}}else{if(hh>MAX){w=Math.round(w*(MAX/hh));hh=MAX;}}
       canvas.width=w;canvas.height=hh;canvas.getContext("2d").drawImage(img,0,0,w,hh);
       IF.imagen=canvas.toDataURL("image/jpeg",0.7);R();
     };img.src=ev.target.result;
   };reader.readAsDataURL(file);input.value="";
 }
-
 async function invSave(){
   if(!IF.nombre)return alert("Ingrese el nombre del producto.");
-  const id=IEd!==null?DB.productos[IEd].id:uid();
-  const item={...IF,id};
+  const id=IEd!==null?DB.productos[IEd].id:uid();const item={...IF,id};
   try{
     await fsSet("productos",id,item);
     if(IEd!==null){DB.productos[IEd]=item;await logAct("EDITAR PRODUCTO",item.nombre);}
     else{DB.productos.push(item);await logAct("NUEVO PRODUCTO",item.nombre);}
     IF={nombre:"",sku:"",categoria:"",unidad:"unidad",precio:0,costo:0,stock:0,stockMin:5,imagen:""};IEd=null;R();
-  }catch(e){alert("Error al guardar: "+e.message);}
+  }catch(e){alert("Error: "+e.message);}
 }
 function invCancel(){IF={nombre:"",sku:"",categoria:"",unidad:"unidad",precio:0,costo:0,stock:0,stockMin:5,imagen:""};IEd=null;R();}
 function invEd(i){IF={...DB.productos[i],imagen:DB.productos[i].imagen||""};IEd=i;R();}
@@ -415,11 +379,11 @@ async function invDel(i){
   catch(e){alert("Error: "+e.message);}
 }
 
-// Entidades con búsqueda
 function buildEnt(tipo){
   const esC=tipo==="clientes";
   const busq=esC?busqCli:busqProv;
-  const setBusq=esC?"busqCli":"busqProv";
+  const cntId=esC?"cnt-cli":"cnt-prov";
+  const tbId=esC?"tbody-cli":"tbody-prov";
   const fs=esC
     ?[["Nombre*","nombre"],["RUC/Cédula","ruc"],["Email","email"],["Teléfono","telefono"],["Dirección","direccion"],["Crédito días","credito"],["Saldo Inicial ($)","saldoInicial"]]
     :[["Nombre*","nombre"],["RUC","ruc"],["Email","email"],["Teléfono","telefono"],["Dirección","direccion"],["Contacto","contacto"]];
@@ -432,11 +396,9 @@ function buildEnt(tipo){
           <select onchange="EF.fechas[${i}].tipo=this.value">
             <option value="">-- Tipo --</option>
             ${["Cumpleaños","Aniversario","Otro"].map(op=>`<option value="${op}"${f.tipo===op?" selected":""}>${op}</option>`).join("")}
-          </select>
-        </div>
+          </select></div>
         <div style="flex:1;min-width:130px"><label class="lbl">Fecha (MM-DD)</label>
-          <input type="text" placeholder="12-25" value="${h(f.fecha)}" onchange="EF.fechas[${i}].fecha=this.value">
-        </div>
+          <input type="text" placeholder="12-25" value="${h(f.fecha)}" onchange="EF.fechas[${i}].fecha=this.value"></div>
         ${i>1?`<button onclick="EF.fechas.splice(${i},1);R()" style="background:${C.red};color:#fff;border:none;border-radius:6px;padding:7px 10px;cursor:pointer">✕</button>`:""}
       </div>`).join("");
     fechasHtml=`<div style="border-top:1px solid ${C.brd};margin-top:14px;padding-top:14px">
@@ -450,36 +412,25 @@ function buildEnt(tipo){
     ${bx(EEd!==null?"Actualizar":"Guardar",C.acc,`entSave('${tipo}')`)}
     ${EEd!==null?bx("Cancelar",C.muted,"entCancel()"):""}
   </div>`;
-  const q=busq.toLowerCase();
-  const filtered=DB[tipo].filter(e=>!q||e.nombre?.toLowerCase().includes(q)||e.ruc?.toLowerCase().includes(q)||e.email?.toLowerCase().includes(q)||e.telefono?.toLowerCase().includes(q));
-  const rows=filtered.map(e=>{
-    const i=DB[tipo].indexOf(e);
-    const fds=esC&&e.fechas?.filter(f=>f.tipo&&f.fecha).map(f=>bdg(`${f.tipo}: ${f.fecha}`,C.blue)).join(" ")||"";
-    const si=esC&&e.saldoInicial>0?bdg(`$${e.saldoInicial}`,C.red):"";
-    return`<tr><td><b>${h(e.nombre)}</b></td><td>${h(e.ruc)}</td><td>${h(e.email)}</td><td>${h(e.telefono)}</td>
-    <td>${esC?`${e.credito} días`:h(e.contacto)}</td>
-    ${esC?`<td>${si||"-"}</td><td>${fds||"-"}</td>`:""}
-    <td>${bx("✏️",C.acc,`entEd('${tipo}',${i})`,`margin-right:4px;padding:4px 8px`)}${bx("🗑",C.red,`entDel('${tipo}',${i})`,`padding:4px 8px`)}</td></tr>`;
-  }).join("");
+  const filtered=filtrarEnt(tipo);
   const thX=esC?`<th>Saldo Ini.</th><th>Fechas</th>`:"";
   return`<div class="card"><div class="h2">${EEd!==null?"✏️ Editar":"➕ Nuevo"} ${esC?"Cliente":"Proveedor"}</div>${form}</div>
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-      <div class="h2" style="margin:0">${esC?"👥 Clientes":"🏭 Proveedores"} (${filtered.length}/${DB[tipo].length})</div>
-      <div class="search-bar">
-        <input placeholder="🔍 Nombre, RUC o teléfono..." value="${h(busq)}" oninput="${setBusq}=this.value;R()" style="width:240px">
-        ${busq?`<button onclick="${setBusq}='';R()" style="background:${C.muted};color:#fff;border:none;border-radius:6px;padding:7px 10px;cursor:pointer;font-size:13px">✕</button>`:""}
+      <div class="h2" style="margin:0" id="${cntId}">${esC?"👥 Clientes":"🏭 Proveedores"} (${filtered.length}/${DB[tipo].length})</div>
+      <div class="sbx">
+        <input id="inp-busq" placeholder="🔍 Nombre, RUC o teléfono..." value="${h(busq)}" style="width:240px">
+        ${busq?`<button onclick="${esC?"busqCli":"busqProv"}='';R()" style="background:${C.muted};color:#fff;border:none;border-radius:6px;padding:7px 10px;cursor:pointer">✕</button>`:""}
       </div>
     </div>
     <div class="ov"><table><thead><tr><th>Nombre</th><th>RUC</th><th>Email</th><th>Teléfono</th><th>${esC?"Crédito":"Contacto"}</th>${thX}<th></th></tr></thead>
-    <tbody>${rows||`<tr><td colspan="${esC?8:6}" class="empty">Sin resultados</td></tr>`}</tbody></table></div>
+    <tbody id="${tbId}">${rowsEnt(tipo,filtered)}</tbody></table></div>
   </div>`;
 }
 
 async function entSave(tipo){
   if(!EF.nombre)return alert("Ingrese el nombre.");
-  const id=EEd!==null?DB[tipo][EEd].id:uid();
-  const item={...EF,id};
+  const id=EEd!==null?DB[tipo][EEd].id:uid();const item={...EF,id};
   try{
     await fsSet(tipo,id,item);
     if(EEd!==null){DB[tipo][EEd]=item;await logAct(`EDITAR ${tipo.toUpperCase()}`,item.nombre);}
@@ -497,10 +448,8 @@ async function entDel(tipo,i){
   catch(e){alert("Error: "+e.message);}
 }
 
-// Ventas
 function buildVentas(){
-  if(VV==="nueva")return buildVN();
-  if(VD!==null)return buildVDet(VD);
+  if(VV==="nueva")return buildVN();if(VD!==null)return buildVDet(VD);
   const rows=[...DB.ventas].reverse().map((v,i)=>`<tr><td style="color:${C.muted};font-size:11px">#${v.id.slice(-6).toUpperCase()}</td><td>${v.fecha}</td><td>${h(v.cliente)}</td><td>${v.fp}</td><td style="color:${C.green};font-weight:600">${fmt(v.total)}</td><td>${bdg(v.estado,v.estado==="pagado"?C.green:C.yel)}</td><td>${bx("Ver",C.acc,`vVer(${DB.ventas.length-1-i})`,`padding:4px 8px`)}</td></tr>`).join("");
   return`<div class="row-between"><div class="h2">🧾 Ventas (${DB.ventas.length})</div>${bx("+ Nueva Venta",C.green,"vNueva()")}</div>
   <div class="card"><div class="ov"><table><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Forma Pago</th><th>Total</th><th>Estado</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="7" class="empty">Sin ventas</td></tr>`}</tbody></table></div></div>`;
@@ -556,13 +505,11 @@ async function vGuardar(){
     await fsSet("ventas",id,v);DB.ventas.push(v);
     for(const l of lns){if(l.pid!==""){const idx=+l.pid;if(DB.productos[idx]){DB.productos[idx].stock-=l.qty;await fsSet("productos",DB.productos[idx].id,DB.productos[idx]);}}}
     await logAct("NUEVA VENTA",`${cli} · ${fmt(total)}`);VV="lista";R();
-  }catch(e){alert("Error al guardar venta: "+e.message);}
+  }catch(e){alert("Error: "+e.message);}
 }
 
-// Compras
 function buildCompras(){
-  if(CV==="nueva")return buildCN();
-  if(CD!==null)return buildCDet(CD);
+  if(CV==="nueva")return buildCN();if(CD!==null)return buildCDet(CD);
   const rows=[...DB.compras].reverse().map((c,i)=>`<tr><td style="color:${C.muted};font-size:11px">#${c.id.slice(-6).toUpperCase()}</td><td>${c.fecha}</td><td>${h(c.proveedor)}</td><td>${c.fp}</td><td style="color:${C.acc};font-weight:600">${fmt(c.total)}</td><td>${bdg(c.estado,c.estado==="pagado"?C.green:C.yel)}</td><td>${bx("Ver",C.acc,`cVer(${DB.compras.length-1-i})`,`padding:4px 8px`)}</td></tr>`).join("");
   return`<div class="row-between"><div class="h2">🛒 Compras (${DB.compras.length})</div>${bx("+ Nueva Compra",C.acc,"cNueva()")}</div>
   <div class="card"><div class="ov"><table><thead><tr><th>#</th><th>Fecha</th><th>Proveedor</th><th>Forma Pago</th><th>Total</th><th>Estado</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="7" class="empty">Sin compras</td></tr>`}</tbody></table></div></div>`;
@@ -618,14 +565,12 @@ async function cGuardar(){
     await fsSet("compras",id,c);DB.compras.push(c);
     for(const l of lns){if(l.pid!==""){const idx=+l.pid;if(DB.productos[idx]){DB.productos[idx].stock+=l.qty;await fsSet("productos",DB.productos[idx].id,DB.productos[idx]);}}}
     await logAct("NUEVA COMPRA",`${prov} · ${fmt(total)}`);CV="lista";R();
-  }catch(e){alert("Error al guardar compra: "+e.message);}
+  }catch(e){alert("Error: "+e.message);}
 }
 
-// CxC / CxP
 function buildCxC(){
   const pend=DB.ventas.map((v,i)=>({...v,_i:i})).filter(v=>v.estado==="pendiente");
-  const tot=pend.reduce((a,v)=>a+v.saldo,0);
-  const panel=ST.cxcIdx>=0?buildPanel(ST.cxcIdx,"cobrar"):"";
+  const tot=pend.reduce((a,v)=>a+v.saldo,0);const panel=ST.cxcIdx>=0?buildPanel(ST.cxcIdx,"cobrar"):"";
   const rows=pend.map(v=>`<tr>
     <td style="color:${C.muted};font-size:11px">#${v.id.slice(-6).toUpperCase()}</td><td>${v.fecha}</td><td>${h(v.cliente)}</td>
     <td>${fmt(v.total)}</td><td style="color:${C.green};font-weight:600">${fmt(v.total-v.saldo)}</td>
@@ -639,8 +584,7 @@ function buildCxC(){
 }
 function buildCxP(){
   const pend=DB.compras.map((c,i)=>({...c,_i:i})).filter(c=>c.estado==="pendiente");
-  const tot=pend.reduce((a,c)=>a+c.saldo,0);
-  const panel=ST.cxpIdx>=0?buildPanel(ST.cxpIdx,"pagar"):"";
+  const tot=pend.reduce((a,c)=>a+c.saldo,0);const panel=ST.cxpIdx>=0?buildPanel(ST.cxpIdx,"pagar"):"";
   const rows=pend.map(c=>`<tr>
     <td style="color:${C.muted};font-size:11px">#${c.id.slice(-6).toUpperCase()}</td><td>${c.fecha}</td><td>${h(c.proveedor)}</td>
     <td>${fmt(c.total)}</td><td style="color:${C.green};font-weight:600">${fmt(c.total-c.saldo)}</td>
@@ -654,10 +598,8 @@ function buildCxP(){
 }
 function buildPanel(idx,tipo){
   const item=tipo==="cobrar"?DB.ventas[idx]:DB.compras[idx];if(!item)return"";
-  const col=tipo==="cobrar"?C.green:C.red;
-  const ent=tipo==="cobrar"?item.cliente:item.proveedor;
-  const pagado=item.total-item.saldo;
-  const pct=item.total>0?Math.min(100,(pagado/item.total)*100).toFixed(0):0;
+  const col=tipo==="cobrar"?C.green:C.red;const ent=tipo==="cobrar"?item.cliente:item.proveedor;
+  const pagado=item.total-item.saldo;const pct=item.total>0?Math.min(100,(pagado/item.total)*100).toFixed(0):0;
   const pagos=item.pagos||[];
   const hist=pagos.length?`<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:${C.muted};margin-bottom:6px">Historial:</div>
     <div class="ov"><table><thead><tr><th>Fecha</th><th>Forma</th><th>Monto</th><th>Usuario</th></tr></thead>
@@ -707,7 +649,6 @@ async function pagarCxP(){
   catch(e){alert("Error: "+e.message);}
 }
 
-// Reportes
 const SUBS=[{k:"dv",l:"📋 Diario Ventas"},{k:"vc",l:"👥 Ventas x Cliente"},{k:"vp",l:"📦 Ventas x Producto"},{k:"rpc",l:"🔗 Prod-Cliente"},{k:"dc",l:"📋 Diario Compras"},{k:"cp",l:"🏭 Compras x Prov."},{k:"er",l:"📈 Estado Result."},{k:"fc",l:"💵 Flujo Caja"},{k:"ca",l:"📅 Cartera"},{k:"ro",l:"🔄 Rotación"},{k:"fp",l:"💳 Formas Pago"},{k:"rc",l:"👤 Rep. Cliente"}];
 function buildRep(){
   const tabs=SUBS.map(s=>`<button onclick="ST.sub='${s.k}';R()" style="background:${ST.sub===s.k?"#6366f1":"#1e293b"};color:${ST.sub===s.k?"#fff":"#94a3b8"};border:1px solid #334155;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600">${s.l}</button>`).join("");
