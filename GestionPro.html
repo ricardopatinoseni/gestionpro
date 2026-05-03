@@ -4,7 +4,6 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>GestiónPro</title>
-<!-- Firebase CDN (sin módulos) -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -54,26 +53,24 @@ td{padding:7px 10px;font-size:13px;border-bottom:1px solid #334155;vertical-alig
 .login-sub{font-size:13px;color:#94a3b8;text-align:center;margin-bottom:24px}
 .spin{display:inline-block;width:16px;height:16px;border:2px solid #ffffff44;border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
+.search-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.search-bar input{width:260px}
 </style>
 </head>
 <body>
 <div id="app"><div class="login-wrap"><div class="login-card"><div class="login-logo">⚡ GestiónPro</div><div class="login-sub">Cargando...</div></div></div></div>
-<input type="file" id="fi-backup" accept=".json" style="display:none">
 <script>
-// ── Firebase init ────────────────────────────────────────
-const firebaseConfig={
+firebase.initializeApp({
   apiKey:"AIzaSyC6nEnCDkqmPQwXeL9ED1wVJfH1ka05iSA",
   authDomain:"gestionpro-erp.firebaseapp.com",
   projectId:"gestionpro-erp",
   storageBucket:"gestionpro-erp.firebasestorage.app",
   messagingSenderId:"454230291432",
   appId:"1:454230291432:web:5767a9217169b5e0392a5d"
-};
-firebase.initializeApp(firebaseConfig);
+});
 const auth=firebase.auth();
 const db=firebase.firestore();
 
-// ── Utilidades ───────────────────────────────────────────
 const C={bg:"#0f172a",card:"#1e293b",brd:"#334155",acc:"#6366f1",acc2:"#818cf8",txt:"#f1f5f9",muted:"#94a3b8",green:"#22c55e",red:"#ef4444",yel:"#f59e0b",blue:"#38bdf8"};
 const fmt=n=>`$${Number(n).toFixed(2)}`;
 const tod=()=>new Date().toISOString().split("T")[0];
@@ -84,7 +81,7 @@ const bx=(l,c,fn,ex="")=>`<button onclick="${fn}" style="background:${c};color:#
 const bdg=(t,c)=>`<span class="badge" style="background:${c}22;color:${c}">${h(String(t))}</span>`;
 function defDesde(){const d=new Date();d.setDate(1);return d.toISOString().split("T")[0];}
 
-// ── Estado global ────────────────────────────────────────
+// Estado
 let CU=null;
 let ST={tab:"Dashboard",menu:false,sub:"dv",rD:defDesde(),rH:tod(),cxcIdx:-1,cxpIdx:-1,roLinea:""};
 let DB={productos:[],clientes:[],proveedores:[],ventas:[],compras:[]};
@@ -97,44 +94,29 @@ let EEd=null;
 let VV="lista",VD=null,CV="lista",CD=null,RCS="";
 let PM={monto:0,forma:"transferencia"};
 let LOGS=[];
+// Búsqueda
+let busqInv="",busqCli="",busqProv="";
 
-// ── Firebase helpers ─────────────────────────────────────
-async function fsSet(col,id,data){
-  await db.collection(col).doc(id).set(data);
-}
-async function fsDel(col,id){
-  await db.collection(col).doc(id).delete();
-}
-async function fsGetAll(col){
-  const snap=await db.collection(col).get();
-  return snap.docs.map(d=>({id:d.id,...d.data()}));
-}
+// Firebase helpers
+async function fsSet(col,id,data){await db.collection(col).doc(id).set(data);}
+async function fsDel(col,id){await db.collection(col).doc(id).delete();}
+async function fsGetAll(col){const snap=await db.collection(col).get();return snap.docs.map(d=>({id:d.id,...d.data()}));}
 async function logAct(accion,detalle=""){
-  try{
-    await db.collection("logs").add({
-      usuario:CU?.email||"?",
-      accion,detalle,
-      fecha:tod(),
-      hora:new Date().toLocaleTimeString("es-EC"),
-      ts:firebase.firestore.FieldValue.serverTimestamp()
-    });
-  }catch(e){console.error("Log:",e);}
+  try{await db.collection("logs").add({usuario:CU?.email||"?",accion,detalle,fecha:tod(),hora:new Date().toLocaleTimeString("es-EC"),ts:firebase.firestore.FieldValue.serverTimestamp()});}
+  catch(e){console.error("Log:",e);}
 }
 async function cargarTodo(){
   const [productos,clientes,proveedores,ventas,compras]=await Promise.all([
-    fsGetAll("productos"),fsGetAll("clientes"),fsGetAll("proveedores"),
-    fsGetAll("ventas"),fsGetAll("compras")
+    fsGetAll("productos"),fsGetAll("clientes"),fsGetAll("proveedores"),fsGetAll("ventas"),fsGetAll("compras")
   ]);
   DB={productos,clientes,proveedores,ventas,compras};
 }
 async function cargarLogs(){
-  try{
-    const snap=await db.collection("logs").orderBy("ts","desc").limit(100).get();
-    LOGS=snap.docs.map(d=>({id:d.id,...d.data()}));
-  }catch(e){LOGS=[];}
+  try{const snap=await db.collection("logs").orderBy("ts","desc").limit(100).get();LOGS=snap.docs.map(d=>({id:d.id,...d.data()}));}
+  catch(e){LOGS=[];}
 }
 
-// ── Auth ─────────────────────────────────────────────────
+// Auth
 auth.onAuthStateChanged(async user=>{
   if(user){CU=user;await cargarTodo();R();}
   else{CU=null;renderLogin();}
@@ -158,65 +140,39 @@ async function doLogin(){
   const pass=document.getElementById("lpass").value;
   const btn=document.getElementById("lbtn");
   const err=document.getElementById("lerr");
-  err.textContent="";
-  btn.innerHTML=`<span class="spin"></span>Ingresando...`;
-  btn.disabled=true;
-  try{
-    await auth.signInWithEmailAndPassword(email,pass);
-    await logAct("LOGIN","Inicio de sesión");
-  }catch(e){
-    err.textContent="Correo o contraseña incorrectos.";
-    btn.innerHTML="Ingresar";btn.disabled=false;
-  }
+  err.textContent="";btn.innerHTML=`<span class="spin"></span>Ingresando...`;btn.disabled=true;
+  try{await auth.signInWithEmailAndPassword(email,pass);await logAct("LOGIN","Inicio de sesión");}
+  catch(e){err.textContent="Correo o contraseña incorrectos.";btn.innerHTML="Ingresar";btn.disabled=false;}
 }
+async function doLogout(){await logAct("LOGOUT","Cierre de sesión");await auth.signOut();}
 
-async function doLogout(){
-  await logAct("LOGOUT","Cierre de sesión");
-  await auth.signOut();
-}
-
-// ── Exportar / Importar ──────────────────────────────────
 function exportar(){
   const b=new Blob([JSON.stringify(DB,null,2)],{type:"application/json"});
-  const u=URL.createObjectURL(b);
-  const a=document.createElement("a");a.href=u;a.download=`gestionpro_${tod()}.json`;a.click();
-  URL.revokeObjectURL(u);
+  const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download=`gestionpro_${tod()}.json`;a.click();URL.revokeObjectURL(u);
   logAct("BACKUP","Exportación de datos");
 }
 
-function importarClick(){document.getElementById("fi-backup").click();}
-
-document.getElementById("fi-backup").addEventListener("change",async function(){
-  const f=this.files[0];if(!f)return;
-  if(!confirm("¿Importar datos? Se agregarán todos los registros del archivo a Firebase."))return;
+async function handleImport(input){
+  const f=input.files[0];if(!f)return;
+  if(!confirm("¿Importar datos?"))return;
   const r=new FileReader();
   r.onload=async ev=>{
     try{
-      const bk=JSON.parse(ev.target.result);
-      let total=0;
+      const bk=JSON.parse(ev.target.result);let total=0;
       for(const col of["productos","clientes","proveedores","ventas","compras"]){
-        if(bk[col]&&Array.isArray(bk[col])){
-          for(const item of bk[col]){
-            if(item.id){await fsSet(col,item.id,item);total++;}
-          }
-        }
+        if(bk[col]&&Array.isArray(bk[col])){for(const item of bk[col]){if(item.id){await fsSet(col,item.id,item);total++;}}}
       }
-      await cargarTodo();
-      await logAct("IMPORTAR",`${total} registros`);
-      alert(`✅ ${total} registros importados.`);
-      R();
-    }catch(e){alert("❌ Error al importar: "+e.message);}
+      await cargarTodo();await logAct("IMPORTAR",`${total} registros`);alert(`✅ ${total} registros importados.`);R();
+    }catch(e){alert("❌ Error: "+e.message);}
   };
-  r.readAsText(f);this.value="";
-});
+  r.readAsText(f);input.value="";
+}
 
-// ── Render ───────────────────────────────────────────────
+// Render
 function R(){
   document.getElementById("app").innerHTML=
-    buildHdr()+
-    (ST.menu?buildMenu():"")+
-    `<div class="content">`+
-    buildAlarmas()+
+    buildHdr()+(ST.menu?buildMenu():"")+
+    `<div class="content">`+buildAlarmas()+
     (ST.tab==="Dashboard"?buildDash():"")+
     (ST.tab==="Inventario"?buildInv():"")+
     (ST.tab==="Clientes"?buildEnt("clientes"):"")+
@@ -244,30 +200,6 @@ function buildHdr(){
   </div>`;
 }
 
-async function handleImport(input){
-  const f=input.files[0];if(!f)return;
-  if(!confirm("¿Importar datos?"))return;
-  const r=new FileReader();
-  r.onload=async ev=>{
-    try{
-      const bk=JSON.parse(ev.target.result);
-      let total=0;
-      for(const col of["productos","clientes","proveedores","ventas","compras"]){
-        if(bk[col]&&Array.isArray(bk[col])){
-          for(const item of bk[col]){
-            if(item.id){await fsSet(col,item.id,item);total++;}
-          }
-        }
-      }
-      await cargarTodo();
-      await logAct("IMPORTAR",`${total} registros`);
-      alert(`✅ ${total} registros importados.`);
-      R();
-    }catch(e){alert("❌ Error: "+e.message);}
-  };
-  r.readAsText(f);input.value="";
-}
-
 function buildMenu(){
   const btns=TABS.map(t=>`<button class="menu-btn${ST.tab===t.k?" active":""}" onclick="goTab('${t.k}')"><span class="ico">${t.i}</span><span class="lbl2">${t.k}</span></button>`).join("");
   return`<div class="menu-overlay" onclick="ST.menu=false;R()"><div class="menu-panel" onclick="event.stopPropagation()">
@@ -280,17 +212,15 @@ function buildMenu(){
   </div></div>`;
 }
 
-function goTab(t){ST.tab=t;ST.menu=false;ST.cxcIdx=-1;ST.cxpIdx=-1;if(t==="Actividad"){cargarLogs().then(R);}else R();}
+function goTab(t){ST.tab=t;ST.menu=false;ST.cxcIdx=-1;ST.cxpIdx=-1;if(t==="Actividad")cargarLogs().then(R);else R();}
 
-// ── Alarmas ──────────────────────────────────────────────
+// Alarmas
 function checkAlarmas(){
-  const hoy=new Date();hoy.setHours(0,0,0,0);
-  const alertas=[];
+  const hoy=new Date();hoy.setHours(0,0,0,0);const alertas=[];
   DB.clientes.forEach(cli=>{
     (cli.fechas||[]).forEach(f=>{
       if(!f.fecha||!f.tipo)return;
-      const parts=f.fecha.split("-");
-      let mes,dia;
+      const parts=f.fecha.split("-");let mes,dia;
       if(parts.length===2){mes=parseInt(parts[0]);dia=parseInt(parts[1]);}
       else if(parts.length===3){mes=parseInt(parts[1]);dia=parseInt(parts[2]);}
       else return;
@@ -311,7 +241,7 @@ function buildAlarmas(){
   return`<div class="alert-banner"><div style="font-weight:700;color:${C.yel};margin-bottom:6px">⚠ Fechas Importantes</div>${items}</div>`;
 }
 
-// ── Dashboard ────────────────────────────────────────────
+// Dashboard
 function buildDash(){
   const tv=DB.ventas.reduce((a,v)=>a+v.total,0);
   const tc=DB.compras.reduce((a,c)=>a+c.total,0);
@@ -340,7 +270,7 @@ function buildDash(){
   </div>`;
 }
 
-// ── Log ──────────────────────────────────────────────────
+// Log
 function buildLog(){
   const rows=LOGS.map(l=>`<tr><td style="color:${C.muted};font-size:11px">${l.fecha||""} ${l.hora||""}</td><td>${bdg(l.usuario,C.acc)}</td><td><b>${h(l.accion)}</b></td><td style="color:${C.muted}">${h(l.detalle)}</td></tr>`).join("");
   return`<div class="h2">📋 Registro de Actividad</div>
@@ -349,10 +279,7 @@ function buildLog(){
   <tbody>${rows||`<tr><td colspan="4" class="empty">Sin actividad</td></tr>`}</tbody></table></div></div>`;
 }
 
-// ── Inventario ───────────────────────────────────────────
-// ── Búsqueda global ──────────────────────────────────────
-let busqInv="",busqCli="",busqProv="";
-
+// Inventario con búsqueda
 function buildInv(){
   const fs=[["Nombre*","nombre","text"],["SKU","sku","text"],["Categoría","categoria","text"],["Unidad","unidad","text"],["Precio","precio","number"],["Costo","costo","number"],["Stock","stock","number"],["Stock Mín","stockMin","number"]];
   const imgSrc=IF.imagen||"";
@@ -374,15 +301,9 @@ function buildInv(){
       ${bx(IEd!==null?"Actualizar":"Guardar",C.acc,"invSave()")}
       ${IEd!==null?bx("Cancelar",C.muted,"invCancel()"):""}
     </div>`;
-
   const q=busqInv.toLowerCase();
-  const filtered=DB.productos.filter(p=>
-    p.nombre?.toLowerCase().includes(q)||
-    p.sku?.toLowerCase().includes(q)||
-    p.categoria?.toLowerCase().includes(q)
-  );
-
-  const rows=filtered.map((p,i)=>{
+  const filtered=DB.productos.filter(p=>!q||p.nombre?.toLowerCase().includes(q)||p.sku?.toLowerCase().includes(q)||p.categoria?.toLowerCase().includes(q));
+  const rows=filtered.map(p=>{
     const ri=DB.productos.indexOf(p);
     return`<tr>
       <td>${p.imagen?`<img src="${p.imagen}" style="width:40px;height:40px;object-fit:cover;border-radius:6px">`:`<div class="img-placeholder">📦</div>`}</td>
@@ -392,20 +313,18 @@ function buildInv(){
       <td>${bx("✏️",C.acc,`invEd(${ri})`,`margin-right:4px;padding:4px 8px`)}${bx("🗑",C.red,`invDel(${ri})`,`padding:4px 8px`)}</td>
     </tr>`;
   }).join("");
-
   return`<div class="card"><div class="h2">${IEd!==null?"✏️ Editar":"➕ Nuevo"} Producto</div>${form}</div>
   <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
       <div class="h2" style="margin:0">📦 Productos (${filtered.length}/${DB.productos.length})</div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <input placeholder="🔍 Buscar por nombre, SKU o categoría..." value="${h(busqInv)}" onchange="busqInv=this.value;R()" oninput="busqInv=this.value;R()" style="width:260px">
-        ${busqInv?`<button onclick="busqInv='';R()" style="background:${C.muted};color:#fff;border:none;border-radius:6px;padding:7px 10px;cursor:pointer">✕</button>`:""}
+      <div class="search-bar">
+        <input placeholder="🔍 Nombre, SKU o categoría..." value="${h(busqInv)}" oninput="busqInv=this.value;R()" style="width:240px">
+        ${busqInv?`<button onclick="busqInv='';R()" style="background:${C.muted};color:#fff;border:none;border-radius:6px;padding:7px 10px;cursor:pointer;font-size:13px">✕</button>`:""}
       </div>
     </div>
     <div class="ov"><table><thead><tr><th>Img</th><th>SKU</th><th>Nombre</th><th>Cat.</th><th>Precio</th><th>Costo</th><th>Stock</th><th>Mín</th><th></th></tr></thead>
     <tbody>${rows||`<tr><td colspan="9" class="empty">Sin resultados</td></tr>`}</tbody></table></div>
   </div>`;
-}
 }
 
 function imgProcess(input){
@@ -431,8 +350,7 @@ async function invSave(){
     await fsSet("productos",id,item);
     if(IEd!==null){DB.productos[IEd]=item;await logAct("EDITAR PRODUCTO",item.nombre);}
     else{DB.productos.push(item);await logAct("NUEVO PRODUCTO",item.nombre);}
-    IF={nombre:"",sku:"",categoria:"",unidad:"unidad",precio:0,costo:0,stock:0,stockMin:5,imagen:""};
-    IEd=null;R();
+    IF={nombre:"",sku:"",categoria:"",unidad:"unidad",precio:0,costo:0,stock:0,stockMin:5,imagen:""};IEd=null;R();
   }catch(e){alert("Error al guardar: "+e.message);}
 }
 function invCancel(){IF={nombre:"",sku:"",categoria:"",unidad:"unidad",precio:0,costo:0,stock:0,stockMin:5,imagen:""};IEd=null;R();}
@@ -444,7 +362,7 @@ async function invDel(i){
   catch(e){alert("Error: "+e.message);}
 }
 
-// ── Entidades ────────────────────────────────────────────
+// Entidades con búsqueda
 function buildEnt(tipo){
   const esC=tipo==="clientes";
   const busq=esC?busqCli:busqProv;
@@ -479,33 +397,25 @@ function buildEnt(tipo){
     ${bx(EEd!==null?"Actualizar":"Guardar",C.acc,`entSave('${tipo}')`)}
     ${EEd!==null?bx("Cancelar",C.muted,"entCancel()"):""}
   </div>`;
-
   const q=busq.toLowerCase();
-  const filtered=DB[tipo].filter(e=>
-    e.nombre?.toLowerCase().includes(q)||
-    e.ruc?.toLowerCase().includes(q)||
-    e.email?.toLowerCase().includes(q)||
-    e.telefono?.toLowerCase().includes(q)
-  );
-
+  const filtered=DB[tipo].filter(e=>!q||e.nombre?.toLowerCase().includes(q)||e.ruc?.toLowerCase().includes(q)||e.email?.toLowerCase().includes(q)||e.telefono?.toLowerCase().includes(q));
   const rows=filtered.map(e=>{
     const i=DB[tipo].indexOf(e);
     const fds=esC&&e.fechas?.filter(f=>f.tipo&&f.fecha).map(f=>bdg(`${f.tipo}: ${f.fecha}`,C.blue)).join(" ")||"";
-    const si=esC&&e.saldoInicial>0?bdg(`${e.saldoInicial}`,C.red):"";
+    const si=esC&&e.saldoInicial>0?bdg(`$${e.saldoInicial}`,C.red):"";
     return`<tr><td><b>${h(e.nombre)}</b></td><td>${h(e.ruc)}</td><td>${h(e.email)}</td><td>${h(e.telefono)}</td>
     <td>${esC?`${e.credito} días`:h(e.contacto)}</td>
     ${esC?`<td>${si||"-"}</td><td>${fds||"-"}</td>`:""}
     <td>${bx("✏️",C.acc,`entEd('${tipo}',${i})`,`margin-right:4px;padding:4px 8px`)}${bx("🗑",C.red,`entDel('${tipo}',${i})`,`padding:4px 8px`)}</td></tr>`;
   }).join("");
-
   const thX=esC?`<th>Saldo Ini.</th><th>Fechas</th>`:"";
   return`<div class="card"><div class="h2">${EEd!==null?"✏️ Editar":"➕ Nuevo"} ${esC?"Cliente":"Proveedor"}</div>${form}</div>
   <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
       <div class="h2" style="margin:0">${esC?"👥 Clientes":"🏭 Proveedores"} (${filtered.length}/${DB[tipo].length})</div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <input placeholder="🔍 Buscar por nombre, RUC o teléfono..." value="${h(busq)}" onchange="${setBusq}=this.value;R()" oninput="${setBusq}=this.value;R()" style="width:260px">
-        ${busq?`<button onclick="${setBusq}='';R()" style="background:${C.muted};color:#fff;border:none;border-radius:6px;padding:7px 10px;cursor:pointer">✕</button>`:""}
+      <div class="search-bar">
+        <input placeholder="🔍 Nombre, RUC o teléfono..." value="${h(busq)}" oninput="${setBusq}=this.value;R()" style="width:240px">
+        ${busq?`<button onclick="${setBusq}='';R()" style="background:${C.muted};color:#fff;border:none;border-radius:6px;padding:7px 10px;cursor:pointer;font-size:13px">✕</button>`:""}
       </div>
     </div>
     <div class="ov"><table><thead><tr><th>Nombre</th><th>RUC</th><th>Email</th><th>Teléfono</th><th>${esC?"Crédito":"Contacto"}</th>${thX}<th></th></tr></thead>
@@ -534,7 +444,7 @@ async function entDel(tipo,i){
   catch(e){alert("Error: "+e.message);}
 }
 
-// ── Ventas ───────────────────────────────────────────────
+// Ventas
 function buildVentas(){
   if(VV==="nueva")return buildVN();
   if(VD!==null)return buildVDet(VD);
@@ -542,11 +452,10 @@ function buildVentas(){
   return`<div class="row-between"><div class="h2">🧾 Ventas (${DB.ventas.length})</div>${bx("+ Nueva Venta",C.green,"vNueva()")}</div>
   <div class="card"><div class="ov"><table><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Forma Pago</th><th>Total</th><th>Estado</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="7" class="empty">Sin ventas</td></tr>`}</tbody></table></div></div>`;
 }
-
 function buildVN(){
   const total=VF.lns.reduce((a,l)=>a+l.qty*l.pu,0);
   const opC=DB.clientes.map((c,i)=>`<option value="${i}"${VF.cliente===String(i)?" selected":""}>${h(c.nombre)}</option>`).join("");
-  const opP=DB.productos.map((p,i)=>`<option value="${i}">${h(p.nombre)}</option>`).join("");
+  const opP=DB.productos.map((p,i)=>`<option value="${i}">${h(p.nombre)} [${h(p.sku)}]</option>`).join("");
   const lns=VF.lns.map((l,i)=>`<div class="grid4">
     <div><label class="lbl">Producto</label><select onchange="vSelP(${i},this.value)"><option value="">--</option>${opP}</select></div>
     <div><label class="lbl">Descripción</label><input value="${h(l.desc)}" onchange="VF.lns[${i}].desc=this.value"></div>
@@ -567,7 +476,6 @@ function buildVN(){
     </div>
   </div>${bx("💾 Guardar Venta",C.green,"vGuardar()")}`;
 }
-
 function buildVDet(i){
   const v=DB.ventas[i];
   const rows=(v.lineas||[]).map(l=>`<tr><td>${h(l.desc)}</td><td>${l.qty}</td><td>${fmt(l.pu)}</td><td>${fmt(l.qty*l.pu)}</td></tr>`).join("");
@@ -578,13 +486,11 @@ function buildVDet(i){
     <div style="text-align:right;margin-top:8px"><div style="font-size:15px;font-weight:700">Total: <span style="color:${C.green}">${fmt(v.total)}</span></div>${v.saldo>0?`<div style="color:${C.red}">Saldo: ${fmt(v.saldo)}</div>`:""}</div>
   </div>`;
 }
-
 function vNueva(){VV="nueva";VF={fecha:tod(),cliente:"",fp:"contado",vence:"",lns:[{id:uid(),pid:"",desc:"",qty:1,pu:0}]};R();}
 function vSelP(i,pi){if(pi==="")return;const p=DB.productos[+pi];VF.lns[i].pid=String(pi);VF.lns[i].desc=p.nombre;VF.lns[i].pu=p.precio;R();}
 function vAddL(){VF.lns.push({id:uid(),pid:"",desc:"",qty:1,pu:0});R();}
 function vDelL(i){VF.lns.splice(i,1);R();}
 function vVer(i){VD=i;R();}
-
 async function vGuardar(){
   if(!VF.cliente)return alert("Seleccione un cliente.");
   const lns=VF.lns.filter(l=>l.desc&&l.desc.trim()!=="");
@@ -594,17 +500,13 @@ async function vGuardar(){
   const id=uid();
   const v={id,fecha:VF.fecha,cliente:cli,fp:VF.fp,vence:VF.vence,lineas:lns,subtotal:total,iva:0,total,saldo:VF.fp==="contado"?0:total,estado:VF.fp==="contado"?"pagado":"pendiente",pagos:[],usuario:CU?.email||""};
   try{
-    await fsSet("ventas",id,v);
-    DB.ventas.push(v);
-    for(const l of lns){
-      if(l.pid!==""){const idx=+l.pid;if(DB.productos[idx]){DB.productos[idx].stock-=l.qty;await fsSet("productos",DB.productos[idx].id,DB.productos[idx]);}}
-    }
-    await logAct("NUEVA VENTA",`${cli} · ${fmt(total)}`);
-    VV="lista";R();
+    await fsSet("ventas",id,v);DB.ventas.push(v);
+    for(const l of lns){if(l.pid!==""){const idx=+l.pid;if(DB.productos[idx]){DB.productos[idx].stock-=l.qty;await fsSet("productos",DB.productos[idx].id,DB.productos[idx]);}}}
+    await logAct("NUEVA VENTA",`${cli} · ${fmt(total)}`);VV="lista";R();
   }catch(e){alert("Error al guardar venta: "+e.message);}
 }
 
-// ── Compras ──────────────────────────────────────────────
+// Compras
 function buildCompras(){
   if(CV==="nueva")return buildCN();
   if(CD!==null)return buildCDet(CD);
@@ -612,11 +514,10 @@ function buildCompras(){
   return`<div class="row-between"><div class="h2">🛒 Compras (${DB.compras.length})</div>${bx("+ Nueva Compra",C.acc,"cNueva()")}</div>
   <div class="card"><div class="ov"><table><thead><tr><th>#</th><th>Fecha</th><th>Proveedor</th><th>Forma Pago</th><th>Total</th><th>Estado</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="7" class="empty">Sin compras</td></tr>`}</tbody></table></div></div>`;
 }
-
 function buildCN(){
   const total=CF.lns.reduce((a,l)=>a+l.qty*l.costo,0);
   const opP=DB.proveedores.map((p,i)=>`<option value="${i}"${CF.proveedor===String(i)?" selected":""}>${h(p.nombre)}</option>`).join("");
-  const opProd=DB.productos.map((p,i)=>`<option value="${i}">${h(p.nombre)}</option>`).join("");
+  const opProd=DB.productos.map((p,i)=>`<option value="${i}">${h(p.nombre)} [${h(p.sku)}]</option>`).join("");
   const lns=CF.lns.map((l,i)=>`<div class="grid4">
     <div><label class="lbl">Producto</label><select onchange="cSelP(${i},this.value)"><option value="">--</option>${opProd}</select></div>
     <div><label class="lbl">Descripción</label><input value="${h(l.desc)}" onchange="CF.lns[${i}].desc=this.value"></div>
@@ -637,7 +538,6 @@ function buildCN(){
     </div>
   </div>${bx("💾 Guardar Compra",C.acc,"cGuardar()")}`;
 }
-
 function buildCDet(i){
   const c=DB.compras[i];
   const rows=(c.lineas||[]).map(l=>`<tr><td>${h(l.desc)}</td><td>${l.qty}</td><td>${fmt(l.costo)}</td><td>${fmt(l.qty*l.costo)}</td></tr>`).join("");
@@ -648,13 +548,11 @@ function buildCDet(i){
     <div style="text-align:right;margin-top:8px"><div style="font-size:15px;font-weight:700">Total: <span style="color:${C.acc}">${fmt(c.total)}</span></div>${c.saldo>0?`<div style="color:${C.red}">Saldo: ${fmt(c.saldo)}</div>`:""}</div>
   </div>`;
 }
-
 function cNueva(){CV="nueva";CF={fecha:tod(),proveedor:"",fp:"contado",vence:"",lns:[{id:uid(),pid:"",desc:"",qty:1,costo:0}]};R();}
 function cSelP(i,pi){if(pi==="")return;const p=DB.productos[+pi];CF.lns[i].pid=String(pi);CF.lns[i].desc=p.nombre;CF.lns[i].costo=p.costo;R();}
 function cAddL(){CF.lns.push({id:uid(),pid:"",desc:"",qty:1,costo:0});R();}
 function cDelL(i){CF.lns.splice(i,1);R();}
 function cVer(i){CD=i;R();}
-
 async function cGuardar(){
   if(!CF.proveedor)return alert("Seleccione un proveedor.");
   const lns=CF.lns.filter(l=>l.desc&&l.desc.trim()!=="");
@@ -664,17 +562,13 @@ async function cGuardar(){
   const id=uid();
   const c={id,fecha:CF.fecha,proveedor:prov,fp:CF.fp,vence:CF.vence,lineas:lns,subtotal:total,iva:0,total,saldo:CF.fp==="contado"?0:total,estado:CF.fp==="contado"?"pagado":"pendiente",pagos:[],usuario:CU?.email||""};
   try{
-    await fsSet("compras",id,c);
-    DB.compras.push(c);
-    for(const l of lns){
-      if(l.pid!==""){const idx=+l.pid;if(DB.productos[idx]){DB.productos[idx].stock+=l.qty;await fsSet("productos",DB.productos[idx].id,DB.productos[idx]);}}
-    }
-    await logAct("NUEVA COMPRA",`${prov} · ${fmt(total)}`);
-    CV="lista";R();
+    await fsSet("compras",id,c);DB.compras.push(c);
+    for(const l of lns){if(l.pid!==""){const idx=+l.pid;if(DB.productos[idx]){DB.productos[idx].stock+=l.qty;await fsSet("productos",DB.productos[idx].id,DB.productos[idx]);}}}
+    await logAct("NUEVA COMPRA",`${prov} · ${fmt(total)}`);CV="lista";R();
   }catch(e){alert("Error al guardar compra: "+e.message);}
 }
 
-// ── CxC / CxP ────────────────────────────────────────────
+// CxC / CxP
 function buildCxC(){
   const pend=DB.ventas.map((v,i)=>({...v,_i:i})).filter(v=>v.estado==="pendiente");
   const tot=pend.reduce((a,v)=>a+v.saldo,0);
@@ -690,7 +584,6 @@ function buildCxC(){
   ${panel}<div class="card"><div class="ov"><table><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Pagado</th><th>Saldo</th><th>Vence</th><th></th></tr></thead>
   <tbody>${rows||`<tr><td colspan="8" class="empty">✅ Sin pendientes</td></tr>`}</tbody></table></div></div>`;
 }
-
 function buildCxP(){
   const pend=DB.compras.map((c,i)=>({...c,_i:i})).filter(c=>c.estado==="pendiente");
   const tot=pend.reduce((a,c)=>a+c.saldo,0);
@@ -706,7 +599,6 @@ function buildCxP(){
   ${panel}<div class="card"><div class="ov"><table><thead><tr><th>#</th><th>Fecha</th><th>Proveedor</th><th>Total</th><th>Pagado</th><th>Saldo</th><th>Vence</th><th></th></tr></thead>
   <tbody>${rows||`<tr><td colspan="8" class="empty">✅ Sin pendientes</td></tr>`}</tbody></table></div></div>`;
 }
-
 function buildPanel(idx,tipo){
   const item=tipo==="cobrar"?DB.ventas[idx]:DB.compras[idx];if(!item)return"";
   const col=tipo==="cobrar"?C.green:C.red;
@@ -743,42 +635,27 @@ function buildPanel(idx,tipo){
     </div>`:`<div style="text-align:center;color:${C.green};font-weight:700;padding:8px">✅ Completamente pagado</div>`}
   </div>`;
 }
-
 async function pagarCxC(){
-  const monto=+document.getElementById("pmonto").value;
-  const forma=document.getElementById("pforma").value;
+  const monto=+document.getElementById("pmonto").value;const forma=document.getElementById("pforma").value;
   if(monto<=0)return alert("Ingrese un monto válido.");
-  const idx=ST.cxcIdx;const v=DB.ventas[idx];
-  const saldo=Math.max(0,v.saldo-monto);
+  const idx=ST.cxcIdx;const v=DB.ventas[idx];const saldo=Math.max(0,v.saldo-monto);
   const pago={fecha:tod(),monto,forma,usuario:CU?.email||""};
   const updated={...v,saldo,estado:saldo===0?"pagado":"pendiente",pagos:[...(v.pagos||[]),pago]};
-  try{
-    await fsSet("ventas",v.id,updated);
-    DB.ventas[idx]=updated;
-    await logAct("PAGO CxC",`${v.cliente} · ${fmt(monto)}`);
-    if(saldo===0)ST.cxcIdx=-1;PM.monto=saldo;R();
-  }catch(e){alert("Error: "+e.message);}
+  try{await fsSet("ventas",v.id,updated);DB.ventas[idx]=updated;await logAct("PAGO CxC",`${v.cliente} · ${fmt(monto)}`);if(saldo===0)ST.cxcIdx=-1;PM.monto=saldo;R();}
+  catch(e){alert("Error: "+e.message);}
 }
-
 async function pagarCxP(){
-  const monto=+document.getElementById("pmonto").value;
-  const forma=document.getElementById("pforma").value;
+  const monto=+document.getElementById("pmonto").value;const forma=document.getElementById("pforma").value;
   if(monto<=0)return alert("Ingrese un monto válido.");
-  const idx=ST.cxpIdx;const c=DB.compras[idx];
-  const saldo=Math.max(0,c.saldo-monto);
+  const idx=ST.cxpIdx;const c=DB.compras[idx];const saldo=Math.max(0,c.saldo-monto);
   const pago={fecha:tod(),monto,forma,usuario:CU?.email||""};
   const updated={...c,saldo,estado:saldo===0?"pagado":"pendiente",pagos:[...(c.pagos||[]),pago]};
-  try{
-    await fsSet("compras",c.id,updated);
-    DB.compras[idx]=updated;
-    await logAct("PAGO CxP",`${c.proveedor} · ${fmt(monto)}`);
-    if(saldo===0)ST.cxpIdx=-1;PM.monto=saldo;R();
-  }catch(e){alert("Error: "+e.message);}
+  try{await fsSet("compras",c.id,updated);DB.compras[idx]=updated;await logAct("PAGO CxP",`${c.proveedor} · ${fmt(monto)}`);if(saldo===0)ST.cxpIdx=-1;PM.monto=saldo;R();}
+  catch(e){alert("Error: "+e.message);}
 }
 
-// ── Reportes ─────────────────────────────────────────────
+// Reportes
 const SUBS=[{k:"dv",l:"📋 Diario Ventas"},{k:"vc",l:"👥 Ventas x Cliente"},{k:"vp",l:"📦 Ventas x Producto"},{k:"rpc",l:"🔗 Prod-Cliente"},{k:"dc",l:"📋 Diario Compras"},{k:"cp",l:"🏭 Compras x Prov."},{k:"er",l:"📈 Estado Result."},{k:"fc",l:"💵 Flujo Caja"},{k:"ca",l:"📅 Cartera"},{k:"ro",l:"🔄 Rotación"},{k:"fp",l:"💳 Formas Pago"},{k:"rc",l:"👤 Rep. Cliente"}];
-
 function buildRep(){
   const tabs=SUBS.map(s=>`<button onclick="ST.sub='${s.k}';R()" style="background:${ST.sub===s.k?"#6366f1":"#1e293b"};color:${ST.sub===s.k?"#fff":"#94a3b8"};border:1px solid #334155;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600">${s.l}</button>`).join("");
   const filtro=`<div class="card" style="margin-bottom:14px"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
@@ -797,7 +674,6 @@ function buildRep(){
   else if(ST.sub==="ro")body=rRO(V);else if(ST.sub==="fp")body=rFP(V);else if(ST.sub==="rc")body=rRC(V);
   return`<div class="sub-tabs">${tabs}</div>${filtro}${body}`;
 }
-
 function rDV(V){const pf={};V.forEach(v=>{if(!pf[v.fecha])pf[v.fecha]={vs:[],t:0};pf[v.fecha].vs.push(v);pf[v.fecha].t+=v.total;});const f=Object.keys(pf).sort().reverse();return`<div class="h2">📋 Diario de Ventas</div><div class="grid2" style="margin-bottom:14px">${sc("Facturas",V.length,C.acc)}${sc("Total",fmt(V.reduce((a,v)=>a+v.total,0)),C.green)}</div>${f.map(d=>`<div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><b style="color:${C.acc2}">${d}</b><b style="color:${C.green}">${fmt(pf[d].t)}</b></div><div class="ov"><table><thead><tr><th>#</th><th>Cliente</th><th>Forma</th><th>Total</th><th>Estado</th><th>Usuario</th></tr></thead><tbody>${pf[d].vs.map(v=>`<tr><td style="font-size:11px;color:${C.muted}">#${v.id.slice(-6).toUpperCase()}</td><td>${h(v.cliente)}</td><td>${v.fp}</td><td style="color:${C.green};font-weight:600">${fmt(v.total)}</td><td>${bdg(v.estado,v.estado==="pagado"?C.green:C.yel)}</td><td style="font-size:11px;color:${C.muted}">${v.usuario||"-"}</td></tr>`).join("")}</tbody></table></div></div>`).join("")||`<div class="card empty">Sin ventas en el rango</div>`}`;}
 function rVC(V){const m={};V.forEach(v=>{if(!m[v.cliente])m[v.cliente]={n:0,t:0};m[v.cliente].n++;m[v.cliente].t+=v.total;});const lista=Object.entries(m).sort((a,b)=>b[1].t-a[1].t);const gt=V.reduce((a,v)=>a+v.total,0);const rows=lista.map(([c,d])=>{const p=gt>0?((d.t/gt)*100).toFixed(1):0;return`<tr><td><b>${h(c)}</b></td><td>${d.n}</td><td style="color:${C.green};font-weight:700">${fmt(d.t)}</td><td><div style="display:flex;align-items:center;gap:6px"><div style="background:#334155;border-radius:4px;height:6px;width:80px"><div style="width:${p}%;background:${C.green};height:6px;border-radius:4px"></div></div><span style="font-size:11px">${p}%</span></div></td></tr>`;}).join("");return`<div class="h2">👥 Ventas por Cliente</div><div class="card"><div class="ov"><table><thead><tr><th>Cliente</th><th>Fact.</th><th>Total</th><th>%</th></tr></thead><tbody>${rows||`<tr><td colspan="4" class="empty">Sin datos</td></tr>`}${lista.length?`<tr style="background:${C.bg}"><td style="font-weight:700">TOTAL</td><td>${V.length}</td><td style="color:${C.green};font-weight:700">${fmt(gt)}</td><td>100%</td></tr>`:""}</tbody></table></div></div>`;}
 function rVP(V){const m={};V.forEach(v=>(v.lineas||[]).forEach(l=>{const k=l.desc;const prod=DB.productos.find(p=>p.nombre===k);if(!m[k])m[k]={q:0,t:0,f:0,sku:prod?.sku||"-"};m[k].q+=l.qty;m[k].t+=l.qty*l.pu;m[k].f++;}));const lista=Object.entries(m).sort((a,b)=>b[1].t-a[1].t);const gt=lista.reduce((a,[,d])=>a+d.t,0);const rows=lista.map(([p,d])=>{const pc=gt>0?((d.t/gt)*100).toFixed(1):0;return`<tr><td style="color:${C.muted};font-size:12px">${h(d.sku)}</td><td><b>${h(p)}</b></td><td>${d.q}</td><td>${d.f}</td><td style="color:${C.green};font-weight:700">${fmt(d.t)}</td><td><div style="display:flex;align-items:center;gap:6px"><div style="background:#334155;border-radius:4px;height:6px;width:80px"><div style="width:${pc}%;background:${C.acc};height:6px;border-radius:4px"></div></div><span style="font-size:11px">${pc}%</span></div></td></tr>`;}).join("");return`<div class="h2">📦 Ventas por Producto</div><div class="card"><div class="ov"><table><thead><tr><th>SKU</th><th>Producto</th><th>Uds.</th><th>Veces</th><th>Total</th><th>%</th></tr></thead><tbody>${rows||`<tr><td colspan="6" class="empty">Sin datos</td></tr>`}</tbody></table></div></div>`;}
