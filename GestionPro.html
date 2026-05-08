@@ -382,12 +382,12 @@ const esC=tipo==="clientes";
 return lista.map(e=>{
 const i=DB[tipo].indexOf(e);
 const fds=esC&&e.fechas?.filter(f=>f.tipo&&f.fecha).map(f=>bdg(`${f.tipo}: ${f.fecha}`,C.blue)).join(" ")||"";
-const si=esC&&e.saldoInicial>0?bdg(`$${e.saldoInicial}`,C.red):"";
+const si=e.saldoInicial>0?bdg(`$${e.saldoInicial}`,C.red):"";
 return`<tr><td><b>${h(e.nombre)}</b></td><td>${h(e.ruc)}</td><td>${h(e.email)}</td><td>${h(e.telefono)}</td>
 <td>${esC?`${e.credito} días`:h(e.contacto)}</td>
-${esC?`<td>${si||"-"}</td><td>${fds||"-"}</td>`:""}
+${esC?`<td>${si||"-"}</td><td>${fds||"-"}</td>`:`<td>${si||"-"}</td>`}
 <td>${bx("✏️",C.acc,`entEd('${tipo}',${i})`,`margin-right:4px;padding:4px 8px`)}${bx("🗑",C.red,`entDel('${tipo}',${i})`,`padding:4px 8px`)}</td></tr>`;
-}).join("")||`<tr><td colspan="${esC?8:6}" class="empty">Sin resultados</td></tr>`;
+}).join("")||`<tr><td colspan="${esC?8:7}" class="empty">Sin resultados</td></tr>`;
 }
 function refreshTabla(id,html){const el=document.getElementById(id);if(el)el.innerHTML=html;}
 function refreshCnt(id,txt){const el=document.getElementById(id);if(el)el.textContent=txt;}
@@ -605,7 +605,7 @@ const cntId=esC?"cnt-cli":"cnt-prov";
 const tbId=esC?"tbody-cli":"tbody-prov";
 const fs=esC
 ?[["Nombre*","nombre"],["RUC/Cédula","ruc"],["Email","email"],["Teléfono","telefono"],["Dirección","direccion"],["Crédito días","credito"],["Saldo Inicial ($)","saldoInicial"]]
-:[["Nombre*","nombre"],["RUC","ruc"],["Email","email"],["Teléfono","telefono"],["Dirección","direccion"],["Contacto","contacto"]];
+:[["Nombre*","nombre"],["RUC","ruc"],["Email","email"],["Teléfono","telefono"],["Dirección","direccion"],["Contacto","contacto"],["Saldo Inicial ($)","saldoInicial"]];
 const camposBase=`<div class="grid2">${fs.map(([l,k])=>`<div><label class="lbl">${l}</label><input value="${h(EF[k]||"")}" onchange="EF['${k}']=this.value"></div>`).join("")}</div>`;
 let fechasHtml="";
 if(esC){
@@ -632,7 +632,7 @@ ${bx(EEd!==null?"Actualizar":"Guardar",C.acc,`entSave('${tipo}')`)}
 ${EEd!==null?bx("Cancelar",C.muted,"entCancel()"):""}
 </div>`;
 const filtered=filtrarEnt(tipo);
-const thX=esC?`<th>Saldo Ini.</th><th>Fechas</th>`:"";
+const thX=esC?`<th>Saldo Ini.</th><th>Fechas</th>`:`<th>Saldo Ini.</th>`;
 return`<div class="card"><div class="h2">${EEd!==null?"✏️ Editar":"➕ Nuevo"} ${esC?"Cliente":"Proveedor"}</div>${form}</div>
 <div class="card">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
