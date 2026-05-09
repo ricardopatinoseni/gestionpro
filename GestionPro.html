@@ -116,7 +116,7 @@ let EEd=null;
 let VV="lista",VD=null,CV="lista",CD=null,RCS="";
 let PM={monto:0,forma:"transferencia"};
 let LOGS=[];
-let busqInv="",busqCli="",busqProv="",busqVen="",busqCom="";
+let busqInv="",busqCli="",busqProv="",busqVen="",busqCom="";let verAgotados=false;
 
 /* ── ESTADO DEL MODAL DE BÚSQUEDA ── */
 let SRCH={open:false,tipo:"",linea:-1,q:"",formCtx:""};
@@ -290,9 +290,9 @@ function updateSrchList(){
   }
   else if(SRCH.tipo==="producto"){
     items=DB.productos.filter(p=>
-      !q||p.nombre?.toLowerCase().includes(q)||
+      p.stock>0&&(!q||p.nombre?.toLowerCase().includes(q)||
       p.sku?.toLowerCase().includes(q)||
-      p.categoria?.toLowerCase().includes(q)
+      p.categoria?.toLowerCase().includes(q))
     );
     if(!items.length){
       el.innerHTML=`<div class="srch-empty">Sin resultados para "${h(SRCH.q)}"</div>`;
@@ -359,7 +359,11 @@ function selSrchProducto(idx){
    ════════════════════════ */
 function filtrarInv(){
 const q=busqInv.toLowerCase();
-return DB.productos.filter(p=>!q||p.nombre?.toLowerCase().includes(q)||p.sku?.toLowerCase().includes(q)||p.categoria?.toLowerCase().includes(q));
+return DB.productos.filter(p=>{
+const matchQ=!q||p.nombre?.toLowerCase().includes(q)||p.sku?.toLowerCase().includes(q)||p.categoria?.toLowerCase().includes(q);
+const matchStock=verAgotados?p.stock===0:p.stock>0;
+return matchQ&&matchStock;
+});
 }
 function filtrarEnt(tipo){
 const q=(tipo==="clientes"?busqCli:busqProv).toLowerCase();
@@ -372,10 +376,10 @@ return`<tr>
 <td>${p.imagen?`<img src="${p.imagen}" style="width:40px;height:40px;object-fit:cover;border-radius:6px">`:`<div class="img-placeholder">📦</div>`}</td>
 <td style="color:${C.muted};font-size:12px">${h(p.sku)}</td><td><b>${h(p.nombre)}</b></td><td>${h(p.categoria)}</td>
 <td>${fmt(p.precio)}</td><td>${fmt(p.costo)}</td>
-<td>${bdg(`${p.stock} ${p.unidad}`,p.stock<=p.stockMin?C.red:C.green)}</td><td>${p.stockMin}</td>
+<td>${bdg(`${p.stock} ${p.unidad}`,C.green)}</td>
 <td>${bx("✏️",C.acc,`invEd(${ri})`,`margin-right:4px;padding:4px 8px`)}${bx("🗑",C.red,`invDel(${ri})`,`padding:4px 8px`)}</td>
 </tr>`;
-}).join("")||`<tr><td colspan="9" class="empty">Sin resultados</td></tr>`;
+}).join("")||`<tr><td colspan="8" class="empty">Sin resultados</td></tr>`;
 }
 function rowsEnt(tipo,lista){
 const esC=tipo==="clientes";
@@ -449,6 +453,7 @@ buildHdr()+(ST.menu?buildMenu():"")+
 (ST.tab==="Actividad"?buildLog():"")+
 `</div>`;
 if(["Inventario","Clientes","Proveedores","Ventas","Compras"].includes(ST.tab))attachBusqueda();
+if(ST.tab==="Reportes"&&ST.sub==="inv"){renderCatTable();}
 }
 
 const TABS=[{k:"Dashboard",i:"🏠"},{k:"Inventario",i:"📦"},{k:"Clientes",i:"👥"},{k:"Proveedores",i:"🏭"},{k:"Ventas",i:"🧾"},{k:"Compras",i:"🛒"},{k:"CxC",i:"💰"},{k:"CxP",i:"💳"},{k:"Reportes",i:"📊"},{k:"Actividad",i:"📋"}];
@@ -503,8 +508,8 @@ return`<div class="alert-banner"><div style="font-weight:700;color:${C.yel};marg
 function buildDash(){
 const tv=DB.ventas.reduce((a,v)=>a+v.total,0);const tc=DB.compras.reduce((a,c)=>a+c.total,0);
 const cxcP=DB.ventas.filter(v=>v.estado==="pendiente");const cxpP=DB.compras.filter(c=>c.estado==="pendiente");
-const sb=DB.productos.filter(p=>p.stock<=p.stockMin);
-const tu=DB.productos.reduce((a,p)=>a+p.stock,0);const vs=DB.productos.reduce((a,p)=>a+(p.stock*p.costo),0);const vi=DB.productos.reduce((a,p)=>a+(p.stock*p.precio),0);
+const sb=[];
+const activos=DB.productos.filter(p=>p.stock>0);const tu=activos.reduce((a,p)=>a+p.stock,0);const vs=activos.reduce((a,p)=>a+(p.stock*p.costo),0);
 const rv=[...DB.ventas].reverse().slice(0,5).map(v=>`<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px"><span style="color:${C.muted}">${v.fecha} · ${h(v.cliente)}</span><b style="color:${C.green}">${fmt(v.total)}</b></div>`).join("")||`<div style="color:${C.muted}">Sin ventas</div>`;
 const rc=cxcP.map(v=>`<tr><td>${h(v.cliente)}</td><td>${fmt(v.total)}</td><td style="color:${C.yel};font-weight:700">${fmt(v.saldo)}</td><td>${v.vence||"-"}</td></tr>`).join("");
 const rp=cxpP.map(c=>`<tr><td>${h(c.proveedor)}</td><td>${fmt(c.total)}</td><td style="color:${C.red};font-weight:700">${fmt(c.saldo)}</td><td>${c.vence||"-"}</td></tr>`).join("");
@@ -519,8 +524,7 @@ ${sc("CxC Pendiente",fmt(cxcP.reduce((a,v)=>a+v.saldo,0)),C.yel)}${sc("CxP Pendi
 <div class="card"><div class="h2" style="color:${C.blue}">📦 Stock Total</div>
 <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:${C.muted}">Unidades</span><b style="color:${C.blue}">${tu}</b></div>
 <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:${C.muted}">Valor inventario</span><b style="color:${C.blue}">${fmt(vs)}</b></div>
-<div style="display:flex;justify-content:space-between;margin-bottom:10px"><span style="color:${C.muted}">Ingreso tentativo</span><b style="color:${C.green}">${fmt(vi)}</b></div>
-${sb.length?`<div style="border-top:1px solid ${C.brd};padding-top:8px"><div style="font-size:11px;color:${C.red};margin-bottom:4px">⚠ Stock bajo (${sb.length})</div>${sb.map(p=>`<div style="display:flex;justify-content:space-between;font-size:12px"><span>${h(p.nombre)}</span>${bdg(p.stock,C.red)}</div>`).join("")}</div>`:""}
+
 </div>
 <div class="card"><div class="h2">📊 Últimas Ventas</div>${rv}</div>
 </div>`;
@@ -533,7 +537,7 @@ return`<div class="h2">📋 Registro de Actividad</div>
 <tbody>${rows||`<tr><td colspan="4" class="empty">Sin actividad</td></tr>`}</tbody></table></div></div>`;
 }
 function buildInv(){
-const fs=[["Nombre*","nombre","text"],["SKU","sku","text"],["Categoría","categoria","text"],["Unidad","unidad","text"],["Precio","precio","number"],["Costo","costo","number"],["Stock","stock","number"],["Stock Mín","stockMin","number"]];
+const fs=[["Nombre*","nombre","text"],["SKU","sku","text"],["Categoría","categoria","text"],["Unidad","unidad","text"],["Precio","precio","number"],["Costo","costo","number"],["Stock","stock","number"]];
 const imgSrc=IF.imagen||"";
 const preview=imgSrc?`<img src="${imgSrc}" class="img-preview">`:`<div class="img-box">📦</div>`;
 const form=`
@@ -559,11 +563,12 @@ return`<div class="card"><div class="h2">${IEd!==null?"✏️ Editar":"➕ Nuevo
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
 <div class="h2" style="margin:0" id="cnt-inv">📦 Productos (${filtered.length}/${DB.productos.length})</div>
 <div class="sbx">
-<input id="inp-busq" placeholder="🔍 Nombre, SKU o categoría..." value="${h(busqInv)}" style="width:240px">
+<input id="inp-busq" placeholder="🔍 Nombre, SKU o categoría..." value="${h(busqInv)}" style="width:220px">
+${bx(verAgotados?"📦 Ver activos":"🗄 Ver agotados",verAgotados?C.green:C.muted,"verAgotados=!verAgotados;R()","font-size:11px;padding:5px 10px")}
 ${busqInv?`<button onclick="busqInv='';R()" style="background:${C.muted};color:#fff;border:none;border-radius:6px;padding:7px 10px;cursor:pointer">✕</button>`:""}
 </div>
 </div>
-<div class="ov"><table><thead><tr><th>Img</th><th>SKU</th><th>Nombre</th><th>Cat.</th><th>Precio</th><th>Costo</th><th>Stock</th><th>Mín</th><th></th></tr></thead>
+<div class="ov"><table><thead><tr><th>Img</th><th>SKU</th><th>Nombre</th><th>Cat.</th><th>Precio</th><th>Costo</th><th>Stock</th><th></th></tr></thead>
 <tbody id="tbody-inv">${rowsInv(filtered)}</tbody></table></div>
 </div>`;
 }
@@ -981,7 +986,7 @@ catch(e){alert("Error: "+e.message);}
 /* ════════════════════════
    REPORTES
    ════════════════════════ */
-const SUBS=[{k:"dv",l:"📋 Diario Ventas"},{k:"vc",l:"👥 Ventas x Cliente"},{k:"vp",l:"📦 Ventas x Producto"},{k:"rpc",l:"🔗 Prod-Cliente"},{k:"dc",l:"📋 Diario Compras"},{k:"cp",l:"🏭 Compras x Prov."},{k:"er",l:"📈 Estado Result."},{k:"fc",l:"💵 Flujo Caja"},{k:"ca",l:"📅 Cartera"},{k:"ro",l:"🔄 Rotación"},{k:"fp",l:"💳 Formas Pago"},{k:"rc",l:"👤 Rep. Cliente"}];
+const SUBS=[{k:"dv",l:"📋 Diario Ventas"},{k:"vc",l:"👥 Ventas x Cliente"},{k:"vp",l:"📦 Ventas x Producto"},{k:"rpc",l:"🔗 Prod-Cliente"},{k:"dc",l:"📋 Diario Compras"},{k:"cp",l:"🏭 Compras x Prov."},{k:"er",l:"📈 Estado Result."},{k:"fc",l:"💵 Flujo Caja"},{k:"ca",l:"📅 Cartera"},{k:"ro",l:"🔄 Rotación"},{k:"fp",l:"💳 Formas Pago"},{k:"rc",l:"👤 Rep. Cliente"},{k:"inv",l:"📦 Inventario"}];
 function buildRep(){
 const tabs=SUBS.map(s=>`<button onclick="ST.sub='${s.k}';R()" style="background:${ST.sub===s.k?"#6366f1":"#1e293b"};color:${ST.sub===s.k?"#fff":"#94a3b8"};border:1px solid #334155;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600">${s.l}</button>`).join("");
 const filtro=`<div class="card" style="margin-bottom:14px"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
@@ -998,6 +1003,7 @@ if(ST.sub==="dv")body=rDV(V);else if(ST.sub==="vc")body=rVC(V);else if(ST.sub===
 else if(ST.sub==="rpc")body=rRPC(V);else if(ST.sub==="dc")body=rDC(K);else if(ST.sub==="cp")body=rCP(K);
 else if(ST.sub==="er")body=rER(V,K);else if(ST.sub==="fc")body=rFC(V,K);else if(ST.sub==="ca")body=rCA();
 else if(ST.sub==="ro")body=rRO(V);else if(ST.sub==="fp")body=rFP(V);else if(ST.sub==="rc")body=rRC(V);
+else if(ST.sub==="inv")body=rINV();
 return`<div class="sub-tabs">${tabs}</div>${filtro}${body}`;
 }
 function rDV(V){const pf={};V.forEach(v=>{if(!pf[v.fecha])pf[v.fecha]={vs:[],t:0};pf[v.fecha].vs.push(v);pf[v.fecha].t+=v.total;});const f=Object.keys(pf).sort().reverse();return`<div class="h2">📋 Diario de Ventas</div><div class="grid2" style="margin-bottom:14px">${sc("Facturas",V.length,C.acc)}${sc("Total",fmt(V.reduce((a,v)=>a+v.total,0)),C.green)}</div>${f.map(d=>`<div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><b style="color:${C.acc2}">${d}</b><b style="color:${C.green}">${fmt(pf[d].t)}</b></div><div class="ov"><table><thead><tr><th>#</th><th>Cliente</th><th>Forma</th><th>Total</th><th>Estado</th><th>Usuario</th></tr></thead><tbody>${pf[d].vs.map(v=>`<tr><td style="font-size:11px;color:${C.muted}">#${v.id.slice(-6).toUpperCase()}</td><td>${h(v.cliente)}</td><td>${v.fp}</td><td style="color:${C.green};font-weight:600">${fmt(v.total)}</td><td>${bdg(v.estado,v.estado==="pagado"?C.green:C.yel)}</td><td style="font-size:11px;color:${C.muted}">${v.usuario||"-"}</td></tr>`).join("")}</tbody></table></div></div>`).join("")||`<div class="card empty">Sin ventas en el rango</div>`}`;}
@@ -1012,6 +1018,163 @@ function rCA(){const hoy=new Date();const pend=DB.ventas.filter(v=>v.estado==="p
 function rRO(V){const m={};V.forEach(v=>(v.lineas||[]).forEach(l=>{if(!m[l.desc])m[l.desc]={q:0,dias:new Set()};m[l.desc].q+=l.qty;m[l.desc].dias.add(v.fecha);}));const rows=Object.entries(m).sort((a,b)=>b[1].q-a[1].q).map(([p,d])=>{const prod=DB.productos.find(pr=>pr.nombre===p);return`<tr><td><b>${h(p)}</b></td><td>${d.q}</td><td>${d.dias.size}</td><td style="color:${C.green};font-weight:600">${prod?prod.stock:"-"}</td><td style="color:${prod&&prod.stock>0?(d.q/prod.stock>1?C.green:C.yel):C.muted}">${prod&&prod.stock>0?(d.q/prod.stock).toFixed(2)+"x":"-"}</td></tr>`;}).join("");return`<div class="h2">🔄 Rotación de Inventario</div><div class="card"><div class="ov"><table><thead><tr><th>Producto</th><th>Uds. Vend.</th><th>Días Activo</th><th>Stock Actual</th><th>Rotación</th></tr></thead><tbody>${rows||`<tr><td colspan="5" class="empty">Sin datos</td></tr>`}</tbody></table></div></div>`;}
 function rFP(V){const m={};V.forEach(v=>{if(!m[v.fp])m[v.fp]={n:0,t:0};m[v.fp].n++;m[v.fp].t+=v.total;});const gt=V.reduce((a,v)=>a+v.total,0);const rows=Object.entries(m).sort((a,b)=>b[1].t-a[1].t).map(([fp,d])=>{const p=gt>0?((d.t/gt)*100).toFixed(1):0;return`<tr><td><b>${fp}</b></td><td>${d.n}</td><td style="color:${C.green};font-weight:700">${fmt(d.t)}</td><td>${p}%</td></tr>`;}).join("");return`<div class="h2">💳 Ventas por Forma de Pago</div><div class="card"><div class="ov"><table><thead><tr><th>Forma</th><th>Transacciones</th><th>Total</th><th>%</th></tr></thead><tbody>${rows||`<tr><td colspan="4" class="empty">Sin datos</td></tr>`}</tbody></table></div></div>`;}
 function rRC(V){const cliSel=RCS;const clis=[...new Set(V.map(v=>v.cliente))].sort();const sel=`<div style="margin-bottom:14px"><label class="lbl">Seleccionar Cliente</label><select onchange="RCS=this.value;R()" style="max-width:300px"><option value="">-- Todos --</option>${clis.map(c=>`<option value="${c}"${c===cliSel?" selected":""}>${h(c)}</option>`).join("")}</select></div>`;const vf=cliSel?V.filter(v=>v.cliente===cliSel):V;const total=vf.reduce((a,v)=>a+v.total,0);const rows=vf.map(v=>`<tr><td style="color:${C.muted};font-size:11px">#${v.id.slice(-6).toUpperCase()}</td><td>${v.fecha}</td><td>${v.fp}</td><td style="color:${C.green};font-weight:600">${fmt(v.total)}</td><td>${bdg(v.estado,v.estado==="pagado"?C.green:C.yel)}</td></tr>`).join("");return`<div class="h2">👤 Reporte por Cliente</div>${sel}<div class="card"><div class="ov"><table><thead><tr><th>#</th><th>Fecha</th><th>Forma</th><th>Total</th><th>Estado</th></tr></thead><tbody>${rows||`<tr><td colspan="5" class="empty">Sin transacciones</td></tr>`}</tbody></table></div>${vf.length?`<div style="text-align:right;padding:10px;border-top:1px solid ${C.brd}"><b>Total: <span style="color:${C.green}">${fmt(total)}</span></b></div>`:""}</div>`;}
+
+let SCAT=[];
+function toggleScat(cat){
+  if(SCAT.includes(cat)){SCAT=SCAT.filter(c=>c!==cat);}
+  else{SCAT.push(cat);}
+  const el=document.getElementById("cat-tbody");
+  const el2=document.getElementById("cat-summary");
+  if(el) renderCatTable();
+}
+function renderCatTable(){
+  const prods=DB.productos;
+  const allCats=[...new Set(prods.map(p=>p.categoria||"Sin categoría"))].sort();
+  const activeCats=SCAT.length?SCAT:allCats;
+  const filtered=prods.filter(p=>activeCats.includes(p.categoria||"Sin categoría"));
+  const totU=filtered.reduce((a,p)=>a+p.stock,0);
+  const totC=filtered.reduce((a,p)=>a+(p.stock*p.costo),0);
+  const totUt=filtered.reduce((a,p)=>a+(p.stock*(p.precio-p.costo)),0);
+  const totMg=totC>0?((totUt/totC)*100).toFixed(1):0;
+
+  const cats={};
+  filtered.forEach(p=>{
+    const c=p.categoria||"Sin categoría";
+    if(!cats[c])cats[c]={u:0,costo:0,ut:0,items:0};
+    cats[c].u+=p.stock;
+    cats[c].costo+=p.stock*p.costo;
+    cats[c].ut+=p.stock*(p.precio-p.costo);
+    cats[c].items++;
+  });
+  const catList=Object.entries(cats).sort((a,b)=>b[1].costo-a[1].costo);
+  const totCatCosto=catList.reduce((a,[,d])=>a+d.costo,0);
+
+  const catRows=catList.map(([cat,d])=>{
+    const mg=d.costo>0?((d.ut/d.costo)*100).toFixed(1):0;
+    const pct=totCatCosto>0?((d.costo/totCatCosto)*100).toFixed(1):0;
+    return`<tr>
+      <td><b>${h(cat)}</b></td>
+      <td style="text-align:center">${d.items}</td>
+      <td style="text-align:right">${d.u}</td>
+      <td style="text-align:right;color:${C.blue}">${fmt(d.costo)}</td>
+      <td style="text-align:right;color:${d.ut>=0?C.green:C.red};font-weight:600">${fmt(d.ut)}</td>
+      <td style="text-align:right;color:${C.muted}">${mg}%</td>
+      <td style="text-align:right">
+        <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
+          <div style="background:#334155;border-radius:4px;height:6px;width:60px">
+            <div style="width:${pct}%;background:${C.acc};height:6px;border-radius:4px"></div>
+          </div>
+          <span style="font-size:11px;color:${C.muted}">${pct}%</span>
+        </div>
+      </td>
+    </tr>`;
+  }).join("");
+
+  const sumRow=catList.length?`<tr style="background:${C.bg};border-top:2px solid ${C.brd}">
+    <td style="font-weight:700">TOTAL</td>
+    <td style="text-align:center;font-weight:700">${filtered.length}</td>
+    <td style="text-align:right;font-weight:700">${totU}</td>
+    <td style="text-align:right;color:${C.blue};font-weight:700">${fmt(totC)}</td>
+    <td style="text-align:right;color:${totUt>=0?C.green:C.red};font-weight:700">${fmt(totUt)}</td>
+    <td style="text-align:right;color:${C.muted};font-weight:700">${totMg}%</td>
+    <td></td>
+  </tr>`:"";
+
+  const el=document.getElementById("cat-tbody");
+  if(el) el.innerHTML=(catRows||`<tr><td colspan="7" class="empty">Sin categorías</td></tr>`)+sumRow;
+}
+function rINV(){
+  const prods=DB.productos.filter(p=>p.stock>0);
+  const totU=prods.reduce((a,p)=>a+p.stock,0);
+  const totC=prods.reduce((a,p)=>a+(p.stock*p.costo),0);
+  const totUt=prods.reduce((a,p)=>a+(p.stock*(p.precio-p.costo)),0);
+  const totMg=totC>0?((totUt/totC)*100).toFixed(1):0;
+
+  const allCats=[...new Set(prods.map(p=>p.categoria||"Sin categoría"))].sort();
+
+  // Cat selector buttons
+  const catBtns=allCats.map(c=>{
+    const active=SCAT.includes(c);
+    return`<button onclick="toggleScat('${c.replace(/'/g,"\'")}')" style="background:${active?"#6366f1":"#1e293b"};color:${active?"#fff":"#94a3b8"};border:1px solid ${active?"#6366f1":"#334155"};border-radius:20px;padding:4px 12px;cursor:pointer;font-size:12px;font-weight:600;margin:2px">${h(c)}</button>`;
+  }).join("");
+
+  const detRows=prods.slice().sort((a,b)=>(a.categoria||"").localeCompare(b.categoria||"")).map(p=>{
+    const ct=p.stock*p.costo;
+    const ut=p.stock*(p.precio-p.costo);
+    return`<tr>
+      <td style="color:${C.muted};font-size:11px">${h(p.sku||"-")}</td>
+      <td>${p.imagen?`<img src="${p.imagen}" style="width:28px;height:28px;object-fit:cover;border-radius:4px">`:`<span style="font-size:16px">📦</span>`}</td>
+      <td><b>${h(p.nombre)}</b></td>
+      <td style="color:${C.muted}">${h(p.categoria||"-")}</td>
+      <td style="text-align:right">${bdg(`${p.stock} ${p.unidad||""}`,C.green)}</td>
+      <td style="text-align:right;color:${C.muted}">${fmt(p.costo)}</td>
+      <td style="text-align:right;color:${C.acc2}">${fmt(p.precio)}</td>
+      <td style="text-align:right;color:${C.blue}">${fmt(ct)}</td>
+      <td style="text-align:right;color:${ut>=0?C.green:C.red};font-weight:600">${fmt(ut)}</td>
+    </tr>`;
+  }).join("");
+
+  return`<div class="h2">📦 Reporte de Inventario</div>
+
+  <div class="grid4" style="margin-bottom:14px;grid-template-columns:1fr 1fr 1fr 1fr">
+    <div class="stat-card" style="border-left-color:${C.acc}">
+      <div class="stat-lbl">Total productos</div>
+      <div class="stat-val" style="color:${C.acc}">${prods.length}</div>
+      <div style="font-size:11px;color:${C.muted};margin-top:4px">${totU} unidades</div>
+    </div>
+    <div class="stat-card" style="border-left-color:${C.blue}">
+      <div class="stat-lbl">Valor al costo</div>
+      <div class="stat-val" style="color:${C.blue}">${fmt(totC)}</div>
+    </div>
+    <div class="stat-card" style="border-left-color:${totUt>=0?C.green:C.red}">
+      <div class="stat-lbl">Utilidad potencial</div>
+      <div class="stat-val" style="color:${totUt>=0?C.green:C.red}">${fmt(totUt)}</div>
+      <div style="font-size:11px;color:${C.muted};margin-top:4px">Margen ${totMg}%</div>
+    </div>
+    <div class="stat-card" style="border-left-color:${C.yel}">
+      <div class="stat-lbl">Categorías</div>
+      <div class="stat-val" style="color:${C.yel}">${allCats.length}</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+      <div class="h2" style="margin:0">📂 Por Categoría</div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <span style="font-size:11px;color:${C.muted}">Filtrar:</span>
+        ${catBtns}
+        ${`<button onclick="SCAT=[];renderCatTable()" style="background:#334155;color:#94a3b8;border:1px solid #475569;border-radius:20px;padding:4px 12px;cursor:pointer;font-size:12px;font-weight:600;margin:2px">✕ Todas</button>`}
+      </div>
+    </div>
+    <div class="ov"><table>
+      <thead><tr>
+        <th>Categoría</th><th style="text-align:center">Productos</th>
+        <th style="text-align:right">Unidades</th>
+        <th style="text-align:right">Valor Costo</th>
+        <th style="text-align:right">Utilidad</th>
+        <th style="text-align:right">Margen</th>
+        <th style="text-align:right">% del total</th>
+      </tr></thead>
+      <tbody id="cat-tbody"></tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <div class="h2" style="margin-bottom:12px">📋 Detalle Completo</div>
+    <div class="ov"><table>
+      <thead><tr>
+        <th>SKU</th><th></th><th>Nombre</th><th>Categoría</th>
+        <th style="text-align:right">Stock</th>
+        <th style="text-align:right">Costo U.</th>
+        <th style="text-align:right">Precio U.</th>
+        <th style="text-align:right">Val. Costo</th>
+        <th style="text-align:right">Utilidad</th>
+      </tr></thead>
+      <tbody>${detRows||`<tr><td colspan="9" class="empty">Sin productos</td></tr>`}</tbody>
+    </table></div>
+  </div>`;
+}
+
 </script>
 </body>
 </html>
