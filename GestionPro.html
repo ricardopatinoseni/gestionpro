@@ -103,7 +103,7 @@ const sc=(l,v,c)=>`<div class="stat-card" style="border-left-color:${c}"><div cl
 const bx=(l,c,fn,ex="")=>`<button onclick="${fn}" style="background:${c};color:#fff;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:13px;font-weight:600;${ex}">${l}</button>`;
 const bdg=(t,c)=>`<span class="badge" style="background:${c}22;color:${c}">${h(String(t))}</span>`;
 const estColor=e=>e==="pagado"?C.green:e==="anulado"?C.muted:C.yel;
-const puedeModificar=x=>(!x.pagos||x.pagos.length===0)&&x.estado!=="anulado";
+const puedeModificar=x=>x.estado==="pendiente";
 function defDesde(){const d=new Date();d.setDate(1);return d.toISOString().split("T")[0];}
 
 let CU=null;
@@ -790,7 +790,7 @@ await logAct("NUEVA VENTA",`${cli} · ${fmt(total)}`);VV="lista";VF={fecha:tod()
 }
 function vEditar(i){
 const v=DB.ventas[i];
-if(!puedeModificar(v))return alert("No se puede editar: esta factura ya tiene pagos registrados o está anulada.");
+if(!puedeModificar(v))return alert("No se puede editar: esta factura ya está pagada o anulada.");
 VEd=i;
 const ci=DB.clientes.findIndex(c=>c.nombre===v.cliente);
 VF={fecha:v.fecha,cliente:ci>=0?String(ci):(v.cliente==="Consumidor Final"?"cf":""),clienteIdx:ci,fp:v.fp,vence:v.vence||"",lns:(v.lineas||[]).map(l=>({...l,id:l.id||uid()}))};
@@ -814,7 +814,7 @@ await logAct("EDITAR VENTA",`${cli} · ${fmt(total)}`);VV="lista";VEd=null;R();
 }
 async function vAnular(i){
 const v=DB.ventas[i];
-if(!puedeModificar(v))return alert("No se puede anular: esta factura ya tiene pagos registrados o ya está anulada.");
+if(!puedeModificar(v))return alert("No se puede anular: esta factura ya está pagada o ya está anulada.");
 if(!confirm("¿Anular esta factura de venta? Se repondrá el stock de los productos involucrados."))return;
 try{
 for(const l of (v.lineas||[])){if(l.pid!==""){const idx=+l.pid;if(DB.productos[idx]){DB.productos[idx].stock+=l.qty;await fsSet("productos",DB.productos[idx].id,DB.productos[idx]);}}}
@@ -938,7 +938,7 @@ await logAct("NUEVA COMPRA",`${prov} · ${fmt(total)}`);CV="lista";CF={fecha:tod
 }
 function cEditar(i){
 const c=DB.compras[i];
-if(!puedeModificar(c))return alert("No se puede editar: esta compra ya tiene pagos registrados o está anulada.");
+if(!puedeModificar(c))return alert("No se puede editar: esta compra ya está pagada o anulada.");
 CEd=i;
 const pi=DB.proveedores.findIndex(p=>p.nombre===c.proveedor);
 CF={fecha:c.fecha,proveedor:pi>=0?String(pi):"",proveedorIdx:pi,fp:c.fp,vence:c.vence||"",lns:(c.lineas||[]).map(l=>({...l,id:l.id||uid()}))};
@@ -962,7 +962,7 @@ await logAct("EDITAR COMPRA",`${prov} · ${fmt(total)}`);CV="lista";CEd=null;R()
 }
 async function cAnular(i){
 const c=DB.compras[i];
-if(!puedeModificar(c))return alert("No se puede anular: esta compra ya tiene pagos registrados o ya está anulada.");
+if(!puedeModificar(c))return alert("No se puede anular: esta compra ya está pagada o ya está anulada.");
 if(!confirm("¿Anular esta compra? Se revertirá el stock de los productos involucrados."))return;
 try{
 for(const l of (c.lineas||[])){if(l.pid!==""){const idx=+l.pid;if(DB.productos[idx]){DB.productos[idx].stock-=l.qty;await fsSet("productos",DB.productos[idx].id,DB.productos[idx]);}}}
