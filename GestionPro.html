@@ -102,6 +102,8 @@ const h=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g
 const sc=(l,v,c)=>`<div class="stat-card" style="border-left-color:${c}"><div class="stat-lbl">${l}</div><div class="stat-val" style="color:${c}">${v}</div></div>`;
 const bx=(l,c,fn,ex="")=>`<button onclick="${fn}" style="background:${c};color:#fff;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:13px;font-weight:600;${ex}">${l}</button>`;
 const bdg=(t,c)=>`<span class="badge" style="background:${c}22;color:${c}">${h(String(t))}</span>`;
+const estColor=e=>e==="pagado"?C.green:e==="anulado"?C.muted:C.yel;
+const puedeModificar=x=>(!x.pagos||x.pagos.length===0)&&x.estado!=="anulado";
 function defDesde(){const d=new Date();d.setDate(1);return d.toISOString().split("T")[0];}
 
 let CU=null;
@@ -114,6 +116,7 @@ let IEd=null;
 let EF={nombre:"",ruc:"",email:"",telefono:"",direccion:"",credito:0,contacto:"",saldoInicial:0,fechas:[{tipo:"Cumpleaños",fecha:""},{tipo:"Aniversario",fecha:""}]};
 let EEd=null;
 let VV="lista",VD=null,CV="lista",CD=null,RCS="";
+let VEd=null,CEd=null;
 let PM={monto:0,forma:"transferencia"};
 let LOGS=[];
 let busqInv="",busqCli="",busqProv="",busqVen="",busqCom="";let verAgotados=false;
@@ -419,7 +422,7 @@ const ql=q.toLowerCase();
 const filtered=[...DB.ventas].filter(v=>!ql||v.cliente?.toLowerCase().includes(ql)||(v.lineas||[]).some(l=>l.desc?.toLowerCase().includes(ql)));
 const rows=filtered.reverse().map(v=>{
 const ri=DB.ventas.indexOf(v);
-return`<tr><td style="color:#94a3b8;font-size:11px">#${v.id.slice(-6).toUpperCase()}</td><td>${v.fecha}</td><td>${h(v.cliente)}</td><td>${v.fp}</td><td style="color:#22c55e;font-weight:600">${fmt(v.total)}</td><td>${bdg(v.estado,v.estado==="pagado"?"#22c55e":"#f59e0b")}</td><td>${bx("Ver","#6366f1",`vVer(${ri})`,`padding:4px 8px`)}</td></tr>`;
+return`<tr><td style="color:#94a3b8;font-size:11px">#${v.id.slice(-6).toUpperCase()}</td><td>${v.fecha}</td><td>${h(v.cliente)}</td><td>${v.fp}</td><td style="color:#22c55e;font-weight:600">${fmt(v.total)}</td><td>${bdg(v.estado,estColor(v.estado))}</td><td>${bx("Ver","#6366f1",`vVer(${ri})`,`padding:4px 8px;margin-right:4px`)}${puedeModificar(v)?bx("✏️",C.yel,`vEditar(${ri})`,`padding:4px 8px;margin-right:4px`)+bx("🚫",C.red,`vAnular(${ri})`,`padding:4px 8px`):""}</td></tr>`;
 }).join("")||`<tr><td colspan="7" class="empty">Sin resultados</td></tr>`;
 refreshTabla("tbody-ven",rows);
 const h2=document.querySelector(".h2");if(h2)h2.textContent=`🧾 Ventas (${filtered.length}/${DB.ventas.length})`;
@@ -429,7 +432,7 @@ const ql=q.toLowerCase();
 const filtered=[...DB.compras].filter(c=>!ql||c.proveedor?.toLowerCase().includes(ql)||(c.lineas||[]).some(l=>l.desc?.toLowerCase().includes(ql)));
 const rows=filtered.reverse().map(c=>{
 const ri=DB.compras.indexOf(c);
-return`<tr><td style="color:#94a3b8;font-size:11px">#${c.id.slice(-6).toUpperCase()}</td><td>${c.fecha}</td><td>${h(c.proveedor)}</td><td>${c.fp}</td><td style="color:#6366f1;font-weight:600">${fmt(c.total)}</td><td>${bdg(c.estado,c.estado==="pagado"?"#22c55e":"#f59e0b")}</td><td>${bx("Ver","#6366f1",`cVer(${ri})`,`padding:4px 8px`)}</td></tr>`;
+return`<tr><td style="color:#94a3b8;font-size:11px">#${c.id.slice(-6).toUpperCase()}</td><td>${c.fecha}</td><td>${h(c.proveedor)}</td><td>${c.fp}</td><td style="color:#6366f1;font-weight:600">${fmt(c.total)}</td><td>${bdg(c.estado,estColor(c.estado))}</td><td>${bx("Ver","#6366f1",`cVer(${ri})`,`padding:4px 8px;margin-right:4px`)}${puedeModificar(c)?bx("✏️",C.yel,`cEditar(${ri})`,`padding:4px 8px;margin-right:4px`)+bx("🚫",C.red,`cAnular(${ri})`,`padding:4px 8px`):""}</td></tr>`;
 }).join("")||`<tr><td colspan="7" class="empty">Sin resultados</td></tr>`;
 refreshTabla("tbody-com",rows);
 }
@@ -675,7 +678,7 @@ catch(e){alert("Error: "+e.message);}
    VENTAS
    ════════════════════════════════════════ */
 function buildVentas(){
-if(VV==="nueva")return buildVN();if(VD!==null)return buildVDet(VD);
+if(VV==="nueva"||VV==="editar")return buildVN();if(VD!==null)return buildVDet(VD);
 const q=busqVen.toLowerCase();
 const filtered=[...DB.ventas].reverse().filter(v=>
 !q||v.cliente?.toLowerCase().includes(q)||
@@ -684,7 +687,7 @@ v.id?.toLowerCase().includes(q)||
 );
 const rows=filtered.map((v,i)=>{
 const ri=DB.ventas.indexOf(v);
-return`<tr><td style="color:${C.muted};font-size:11px">#${v.id.slice(-6).toUpperCase()}</td><td>${v.fecha}</td><td>${h(v.cliente)}</td><td>${v.fp}</td><td style="color:${C.green};font-weight:600">${fmt(v.total)}</td><td>${bdg(v.estado,v.estado==="pagado"?C.green:C.yel)}</td><td>${bx("Ver",C.acc,`vVer(${DB.ventas.length-1-(DB.ventas.length-1-ri)})`,`padding:4px 8px`)}</td></tr>`;
+return`<tr><td style="color:${C.muted};font-size:11px">#${v.id.slice(-6).toUpperCase()}</td><td>${v.fecha}</td><td>${h(v.cliente)}</td><td>${v.fp}</td><td style="color:${C.green};font-weight:600">${fmt(v.total)}</td><td>${bdg(v.estado,estColor(v.estado))}</td><td>${bx("Ver",C.acc,`vVer(${ri})`,`padding:4px 8px;margin-right:4px`)}${puedeModificar(v)?bx("✏️",C.yel,`vEditar(${ri})`,`padding:4px 8px;margin-right:4px`)+bx("🚫",C.red,`vAnular(${ri})`,`padding:4px 8px`):""}</td></tr>`;
 }).join("");
 return`<div class="row-between">
 <div class="h2">🧾 Ventas (${filtered.length}/${DB.ventas.length})</div>
@@ -729,7 +732,7 @@ const lns=VF.lns.map((l,i)=>{
 </div>`;
 }).join("");
 
-return`<div style="display:flex;gap:8px;margin-bottom:10px">${bx("← Volver",C.muted,"VV='lista';VF={fecha:tod(),cliente:'',clienteIdx:-1,fp:'contado',vence:'',lns:[{id:uid(),pid:'',desc:'',qty:1,pu:0}]};R()")}<b style="line-height:2">Nueva Venta</b></div>
+return`<div style="display:flex;gap:8px;margin-bottom:10px">${bx("← Volver",C.muted,"VV='lista';VEd=null;VF={fecha:tod(),cliente:'',clienteIdx:-1,fp:'contado',vence:'',lns:[{id:uid(),pid:'',desc:'',qty:1,pu:0}]};R()")}<b style="line-height:2">${VEd!==null?"Editar Venta":"Nueva Venta"}</b></div>
 <div class="card"><div class="grid2">
 <div><label class="lbl">Fecha</label><input type="date" value="${VF.fecha}" onchange="VF.fecha=this.value"></div>
 
@@ -753,7 +756,7 @@ ${bx("+ Línea",C.acc2,"vAddL()",`margin-top:4px`)}
 <div style="margin-top:14px;text-align:right;border-top:1px solid ${C.brd};padding-top:10px">
 <div style="font-size:17px;font-weight:700">Total: <span style="color:${C.green}">${fmt(total)}</span></div>
 </div>
-</div>${bx("💾 Guardar Venta",C.green,"vGuardar()")}`;
+</div>${bx(VEd!==null?"💾 Actualizar Venta":"💾 Guardar Venta",C.green,VEd!==null?"vActualizar()":"vGuardar()")}`;
 }
 
 function buildVDet(i){
@@ -766,7 +769,7 @@ return`${bx("← Volver",C.muted,"VD=null;R()",`margin-bottom:10px`)}
 <div style="text-align:right;margin-top:8px"><div style="font-size:15px;font-weight:700">Total: <span style="color:${C.green}">${fmt(v.total)}</span></div>${v.saldo>0?`<div style="color:${C.red}">Saldo: ${fmt(v.saldo)}</div>`:""}</div>
 </div>`;
 }
-function vNueva(){VV="nueva";VF={fecha:tod(),cliente:"",clienteIdx:-1,fp:"contado",vence:"",lns:[{id:uid(),pid:"",desc:"",qty:1,pu:0}]};R();}
+function vNueva(){VV="nueva";VEd=null;VF={fecha:tod(),cliente:"",clienteIdx:-1,fp:"contado",vence:"",lns:[{id:uid(),pid:"",desc:"",qty:1,pu:0}]};R();}
 function vSelP(i,pi){if(pi==="")return;const p=DB.productos[+pi];VF.lns[i].pid=String(pi);VF.lns[i].desc=p.nombre;VF.lns[i].pu=p.precio;}
 function vAddL(){VF.lns.push({id:uid(),pid:"",desc:"",qty:1,pu:0});R();}
 function vDelL(i){VF.lns.splice(i,1);R();}
@@ -785,12 +788,47 @@ for(const l of lns){if(l.pid!==""){const idx=+l.pid;if(DB.productos[idx]){DB.pro
 await logAct("NUEVA VENTA",`${cli} · ${fmt(total)}`);VV="lista";VF={fecha:tod(),cliente:"",clienteIdx:-1,fp:"contado",vence:"",lns:[{id:uid(),pid:"",desc:"",qty:1,pu:0}]};R();
 }catch(e){alert("Error: "+e.message);}
 }
+function vEditar(i){
+const v=DB.ventas[i];
+if(!puedeModificar(v))return alert("No se puede editar: esta factura ya tiene pagos registrados o está anulada.");
+VEd=i;
+const ci=DB.clientes.findIndex(c=>c.nombre===v.cliente);
+VF={fecha:v.fecha,cliente:ci>=0?String(ci):(v.cliente==="Consumidor Final"?"cf":""),clienteIdx:ci,fp:v.fp,vence:v.vence||"",lns:(v.lineas||[]).map(l=>({...l,id:l.id||uid()}))};
+VV="editar";R();
+}
+async function vActualizar(){
+if(!VF.cliente)return alert("Seleccione un cliente.");
+const lns=VF.lns.filter(l=>l.desc&&l.desc.trim()!=="");
+if(!lns.length)return alert("Agregue al menos un producto.");
+const idx=VEd;const old=DB.ventas[idx];
+if(!old||!puedeModificar(old))return alert("No se puede editar esta factura.");
+const total=lns.reduce((a,l)=>a+l.qty*l.pu,0);
+const cli=VF.cliente==="cf"?"Consumidor Final":(DB.clientes[+VF.cliente]?.nombre||VF.cliente);
+try{
+for(const l of (old.lineas||[])){if(l.pid!==""){const pidx=+l.pid;if(DB.productos[pidx]){DB.productos[pidx].stock+=l.qty;await fsSet("productos",DB.productos[pidx].id,DB.productos[pidx]);}}}
+for(const l of lns){if(l.pid!==""){const pidx=+l.pid;if(DB.productos[pidx]){DB.productos[pidx].stock-=l.qty;await fsSet("productos",DB.productos[pidx].id,DB.productos[pidx]);}}}
+const updated={...old,fecha:VF.fecha,cliente:cli,fp:VF.fp,vence:VF.vence,lineas:lns,subtotal:total,iva:0,total,saldo:VF.fp==="contado"?0:total,estado:VF.fp==="contado"?"pagado":"pendiente"};
+await fsSet("ventas",old.id,updated);DB.ventas[idx]=updated;
+await logAct("EDITAR VENTA",`${cli} · ${fmt(total)}`);VV="lista";VEd=null;R();
+}catch(e){alert("Error: "+e.message);}
+}
+async function vAnular(i){
+const v=DB.ventas[i];
+if(!puedeModificar(v))return alert("No se puede anular: esta factura ya tiene pagos registrados o ya está anulada.");
+if(!confirm("¿Anular esta factura de venta? Se repondrá el stock de los productos involucrados."))return;
+try{
+for(const l of (v.lineas||[])){if(l.pid!==""){const idx=+l.pid;if(DB.productos[idx]){DB.productos[idx].stock+=l.qty;await fsSet("productos",DB.productos[idx].id,DB.productos[idx]);}}}
+const updated={...v,estado:"anulado",saldo:0};
+await fsSet("ventas",v.id,updated);DB.ventas[i]=updated;
+await logAct("ANULAR VENTA",`${v.cliente} · ${fmt(v.total)}`);R();
+}catch(e){alert("Error: "+e.message);}
+}
 
 /* ════════════════════════════════════════
    COMPRAS
    ════════════════════════════════════════ */
 function buildCompras(){
-if(CV==="nueva")return buildCN();if(CD!==null)return buildCDet(CD);
+if(CV==="nueva"||CV==="editar")return buildCN();if(CD!==null)return buildCDet(CD);
 const q=busqCom.toLowerCase();
 const filtered=[...DB.compras].reverse().filter(c=>
 !q||c.proveedor?.toLowerCase().includes(q)||
@@ -799,7 +837,7 @@ c.id?.toLowerCase().includes(q)||
 );
 const rows=filtered.map(c=>{
 const ri=DB.compras.indexOf(c);
-return`<tr><td style="color:${C.muted};font-size:11px">#${c.id.slice(-6).toUpperCase()}</td><td>${c.fecha}</td><td>${h(c.proveedor)}</td><td>${c.fp}</td><td style="color:${C.acc};font-weight:600">${fmt(c.total)}</td><td>${bdg(c.estado,c.estado==="pagado"?C.green:C.yel)}</td><td>${bx("Ver",C.acc,`cVer(${ri})`,`padding:4px 8px`)}</td></tr>`;
+return`<tr><td style="color:${C.muted};font-size:11px">#${c.id.slice(-6).toUpperCase()}</td><td>${c.fecha}</td><td>${h(c.proveedor)}</td><td>${c.fp}</td><td style="color:${C.acc};font-weight:600">${fmt(c.total)}</td><td>${bdg(c.estado,estColor(c.estado))}</td><td>${bx("Ver",C.acc,`cVer(${ri})`,`padding:4px 8px;margin-right:4px`)}${puedeModificar(c)?bx("✏️",C.yel,`cEditar(${ri})`,`padding:4px 8px;margin-right:4px`)+bx("🚫",C.red,`cAnular(${ri})`,`padding:4px 8px`):""}</td></tr>`;
 }).join("");
 return`<div class="row-between">
 <div class="h2">🛒 Compras (${filtered.length}/${DB.compras.length})</div>
@@ -843,7 +881,7 @@ const lns=CF.lns.map((l,i)=>{
 </div>`;
 }).join("");
 
-return`<div style="display:flex;gap:8px;margin-bottom:10px">${bx("← Volver",C.muted,"CV='lista';CF={fecha:tod(),proveedor:'',proveedorIdx:-1,fp:'contado',vence:'',lns:[{id:uid(),pid:'',desc:'',qty:1,costo:0}]};R()")}<b style="line-height:2">Nueva Compra</b></div>
+return`<div style="display:flex;gap:8px;margin-bottom:10px">${bx("← Volver",C.muted,"CV='lista';CEd=null;CF={fecha:tod(),proveedor:'',proveedorIdx:-1,fp:'contado',vence:'',lns:[{id:uid(),pid:'',desc:'',qty:1,costo:0}]};R()")}<b style="line-height:2">${CEd!==null?"Editar Compra":"Nueva Compra"}</b></div>
 <div class="card"><div class="grid2">
 <div><label class="lbl">Fecha</label><input type="date" value="${CF.fecha}" onchange="CF.fecha=this.value"></div>
 
@@ -866,7 +904,7 @@ ${bx("+ Línea",C.acc2,"cAddL()",`margin-top:4px`)}
 <div style="margin-top:14px;text-align:right;border-top:1px solid ${C.brd};padding-top:10px">
 <div style="font-size:17px;font-weight:700">Total: <span style="color:${C.acc}">${fmt(total)}</span></div>
 </div>
-</div>${bx("💾 Guardar Compra",C.acc,"cGuardar()")}`;
+</div>${bx(CEd!==null?"💾 Actualizar Compra":"💾 Guardar Compra",C.acc,CEd!==null?"cActualizar()":"cGuardar()")}`;
 }
 
 function buildCDet(i){
@@ -879,7 +917,7 @@ return`${bx("← Volver",C.muted,"CD=null;R()",`margin-bottom:10px`)}
 <div style="text-align:right;margin-top:8px"><div style="font-size:15px;font-weight:700">Total: <span style="color:${C.acc}">${fmt(c.total)}</span></div>${c.saldo>0?`<div style="color:${C.red}">Saldo: ${fmt(c.saldo)}</div>`:""}</div>
 </div>`;
 }
-function cNueva(){CV="nueva";CF={fecha:tod(),proveedor:"",proveedorIdx:-1,fp:"contado",vence:"",lns:[{id:uid(),pid:"",desc:"",qty:1,costo:0}]};R();}
+function cNueva(){CV="nueva";CEd=null;CF={fecha:tod(),proveedor:"",proveedorIdx:-1,fp:"contado",vence:"",lns:[{id:uid(),pid:"",desc:"",qty:1,costo:0}]};R();}
 function cSelP(i,pi){if(pi==="")return;const p=DB.productos[+pi];CF.lns[i].pid=String(pi);CF.lns[i].desc=p.nombre;CF.lns[i].costo=p.costo;}
 function cAddL(){CF.lns.push({id:uid(),pid:"",desc:"",qty:1,costo:0});R();}
 function cDelL(i){CF.lns.splice(i,1);R();}
@@ -896,6 +934,41 @@ try{
 await fsSet("compras",id,c);DB.compras.push(c);
 for(const l of lns){if(l.pid!==""){const idx=+l.pid;if(DB.productos[idx]){DB.productos[idx].stock+=l.qty;await fsSet("productos",DB.productos[idx].id,DB.productos[idx]);}}}
 await logAct("NUEVA COMPRA",`${prov} · ${fmt(total)}`);CV="lista";CF={fecha:tod(),proveedor:"",proveedorIdx:-1,fp:"contado",vence:"",lns:[{id:uid(),pid:"",desc:"",qty:1,costo:0}]};R();
+}catch(e){alert("Error: "+e.message);}
+}
+function cEditar(i){
+const c=DB.compras[i];
+if(!puedeModificar(c))return alert("No se puede editar: esta compra ya tiene pagos registrados o está anulada.");
+CEd=i;
+const pi=DB.proveedores.findIndex(p=>p.nombre===c.proveedor);
+CF={fecha:c.fecha,proveedor:pi>=0?String(pi):"",proveedorIdx:pi,fp:c.fp,vence:c.vence||"",lns:(c.lineas||[]).map(l=>({...l,id:l.id||uid()}))};
+CV="editar";R();
+}
+async function cActualizar(){
+if(!CF.proveedor)return alert("Seleccione un proveedor.");
+const lns=CF.lns.filter(l=>l.desc&&l.desc.trim()!=="");
+if(!lns.length)return alert("Agregue al menos un producto.");
+const idx=CEd;const old=DB.compras[idx];
+if(!old||!puedeModificar(old))return alert("No se puede editar esta compra.");
+const total=lns.reduce((a,l)=>a+l.qty*l.costo,0);
+const prov=DB.proveedores[+CF.proveedor]?.nombre||CF.proveedor;
+try{
+for(const l of (old.lineas||[])){if(l.pid!==""){const pidx=+l.pid;if(DB.productos[pidx]){DB.productos[pidx].stock-=l.qty;await fsSet("productos",DB.productos[pidx].id,DB.productos[pidx]);}}}
+for(const l of lns){if(l.pid!==""){const pidx=+l.pid;if(DB.productos[pidx]){DB.productos[pidx].stock+=l.qty;await fsSet("productos",DB.productos[pidx].id,DB.productos[pidx]);}}}
+const updated={...old,fecha:CF.fecha,proveedor:prov,fp:CF.fp,vence:CF.vence,lineas:lns,subtotal:total,iva:0,total,saldo:CF.fp==="contado"?0:total,estado:CF.fp==="contado"?"pagado":"pendiente"};
+await fsSet("compras",old.id,updated);DB.compras[idx]=updated;
+await logAct("EDITAR COMPRA",`${prov} · ${fmt(total)}`);CV="lista";CEd=null;R();
+}catch(e){alert("Error: "+e.message);}
+}
+async function cAnular(i){
+const c=DB.compras[i];
+if(!puedeModificar(c))return alert("No se puede anular: esta compra ya tiene pagos registrados o ya está anulada.");
+if(!confirm("¿Anular esta compra? Se revertirá el stock de los productos involucrados."))return;
+try{
+for(const l of (c.lineas||[])){if(l.pid!==""){const idx=+l.pid;if(DB.productos[idx]){DB.productos[idx].stock-=l.qty;await fsSet("productos",DB.productos[idx].id,DB.productos[idx]);}}}
+const updated={...c,estado:"anulado",saldo:0};
+await fsSet("compras",c.id,updated);DB.compras[i]=updated;
+await logAct("ANULAR COMPRA",`${c.proveedor} · ${fmt(c.total)}`);R();
 }catch(e){alert("Error: "+e.message);}
 }
 
@@ -1006,11 +1079,11 @@ else if(ST.sub==="ro")body=rRO(V);else if(ST.sub==="fp")body=rFP(V);else if(ST.s
 else if(ST.sub==="inv")body=rINV();
 return`<div class="sub-tabs">${tabs}</div>${filtro}${body}`;
 }
-function rDV(V){const pf={};V.forEach(v=>{if(!pf[v.fecha])pf[v.fecha]={vs:[],t:0};pf[v.fecha].vs.push(v);pf[v.fecha].t+=v.total;});const f=Object.keys(pf).sort().reverse();return`<div class="h2">📋 Diario de Ventas</div><div class="grid2" style="margin-bottom:14px">${sc("Facturas",V.length,C.acc)}${sc("Total",fmt(V.reduce((a,v)=>a+v.total,0)),C.green)}</div>${f.map(d=>`<div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><b style="color:${C.acc2}">${d}</b><b style="color:${C.green}">${fmt(pf[d].t)}</b></div><div class="ov"><table><thead><tr><th>#</th><th>Cliente</th><th>Forma</th><th>Total</th><th>Estado</th><th>Usuario</th></tr></thead><tbody>${pf[d].vs.map(v=>`<tr><td style="font-size:11px;color:${C.muted}">#${v.id.slice(-6).toUpperCase()}</td><td>${h(v.cliente)}</td><td>${v.fp}</td><td style="color:${C.green};font-weight:600">${fmt(v.total)}</td><td>${bdg(v.estado,v.estado==="pagado"?C.green:C.yel)}</td><td style="font-size:11px;color:${C.muted}">${v.usuario||"-"}</td></tr>`).join("")}</tbody></table></div></div>`).join("")||`<div class="card empty">Sin ventas en el rango</div>`}`;}
+function rDV(V){const pf={};V.forEach(v=>{if(!pf[v.fecha])pf[v.fecha]={vs:[],t:0};pf[v.fecha].vs.push(v);pf[v.fecha].t+=v.total;});const f=Object.keys(pf).sort().reverse();return`<div class="h2">📋 Diario de Ventas</div><div class="grid2" style="margin-bottom:14px">${sc("Facturas",V.length,C.acc)}${sc("Total",fmt(V.reduce((a,v)=>a+v.total,0)),C.green)}</div>${f.map(d=>`<div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><b style="color:${C.acc2}">${d}</b><b style="color:${C.green}">${fmt(pf[d].t)}</b></div><div class="ov"><table><thead><tr><th>#</th><th>Cliente</th><th>Forma</th><th>Total</th><th>Estado</th><th>Usuario</th></tr></thead><tbody>${pf[d].vs.map(v=>`<tr><td style="font-size:11px;color:${C.muted}">#${v.id.slice(-6).toUpperCase()}</td><td>${h(v.cliente)}</td><td>${v.fp}</td><td style="color:${C.green};font-weight:600">${fmt(v.total)}</td><td>${bdg(v.estado,estColor(v.estado))}</td><td style="font-size:11px;color:${C.muted}">${v.usuario||"-"}</td></tr>`).join("")}</tbody></table></div></div>`).join("")||`<div class="card empty">Sin ventas en el rango</div>`}`;}
 function rVC(V){const m={};V.forEach(v=>{if(!m[v.cliente])m[v.cliente]={n:0,t:0};m[v.cliente].n++;m[v.cliente].t+=v.total;});const lista=Object.entries(m).sort((a,b)=>b[1].t-a[1].t);const gt=V.reduce((a,v)=>a+v.total,0);const rows=lista.map(([c,d])=>{const p=gt>0?((d.t/gt)*100).toFixed(1):0;return`<tr><td><b>${h(c)}</b></td><td>${d.n}</td><td style="color:${C.green};font-weight:700">${fmt(d.t)}</td><td><div style="display:flex;align-items:center;gap:6px"><div style="background:#334155;border-radius:4px;height:6px;width:80px"><div style="width:${p}%;background:${C.green};height:6px;border-radius:4px"></div></div><span style="font-size:11px">${p}%</span></div></td></tr>`;}).join("");return`<div class="h2">👥 Ventas por Cliente</div><div class="card"><div class="ov"><table><thead><tr><th>Cliente</th><th>Fact.</th><th>Total</th><th>%</th></tr></thead><tbody>${rows||`<tr><td colspan="4" class="empty">Sin datos</td></tr>`}${lista.length?`<tr style="background:${C.bg}"><td style="font-weight:700">TOTAL</td><td>${V.length}</td><td style="color:${C.green};font-weight:700">${fmt(gt)}</td><td>100%</td></tr>`:""}</tbody></table></div></div>`;}
 function rVP(V){const m={};V.forEach(v=>(v.lineas||[]).forEach(l=>{const k=l.desc;const prod=DB.productos.find(p=>p.nombre===k);if(!m[k])m[k]={q:0,t:0,f:0,sku:prod?.sku||"-"};m[k].q+=l.qty;m[k].t+=l.qty*l.pu;m[k].f++;}));const lista=Object.entries(m).sort((a,b)=>b[1].t-a[1].t);const gt=lista.reduce((a,[,d])=>a+d.t,0);const rows=lista.map(([p,d])=>{const pc=gt>0?((d.t/gt)*100).toFixed(1):0;return`<tr><td style="color:${C.muted};font-size:12px">${h(d.sku)}</td><td><b>${h(p)}</b></td><td>${d.q}</td><td>${d.f}</td><td style="color:${C.green};font-weight:700">${fmt(d.t)}</td><td><div style="display:flex;align-items:center;gap:6px"><div style="background:#334155;border-radius:4px;height:6px;width:80px"><div style="width:${pc}%;background:${C.acc};height:6px;border-radius:4px"></div></div><span style="font-size:11px">${pc}%</span></div></td></tr>`;}).join("");return`<div class="h2">📦 Ventas por Producto</div><div class="card"><div class="ov"><table><thead><tr><th>SKU</th><th>Producto</th><th>Uds.</th><th>Veces</th><th>Total</th><th>%</th></tr></thead><tbody>${rows||`<tr><td colspan="6" class="empty">Sin datos</td></tr>`}</tbody></table></div></div>`;}
 function rRPC(V){const m={};V.forEach(v=>(v.lineas||[]).forEach(l=>{const k=l.desc+"|||"+v.cliente;const prod=DB.productos.find(p=>p.nombre===l.desc);if(!m[k])m[k]={p:l.desc,c:v.cliente,q:0,t:0,n:0,sku:prod?.sku||"-"};m[k].q+=l.qty;m[k].t+=l.qty*l.pu;m[k].n++;}));const rows=Object.values(m).sort((a,b)=>b.t-a.t).map(r=>`<tr><td style="color:${C.muted};font-size:12px">${h(r.sku)}</td><td><b>${h(r.p)}</b></td><td>${h(r.c)}</td><td>${r.q}</td><td>${r.n}</td><td style="color:${C.green};font-weight:600">${fmt(r.t)}</td></tr>`).join("");return`<div class="h2">🔗 Relación Producto - Cliente</div><div class="card"><div class="ov"><table><thead><tr><th>SKU</th><th>Producto</th><th>Cliente</th><th>Uds.</th><th>Veces</th><th>Total</th></tr></thead><tbody>${rows||`<tr><td colspan="6" class="empty">Sin datos</td></tr>`}</tbody></table></div></div>`;}
-function rDC(K){const pf={};K.forEach(c=>{if(!pf[c.fecha])pf[c.fecha]={cs:[],t:0};pf[c.fecha].cs.push(c);pf[c.fecha].t+=c.total;});const f=Object.keys(pf).sort().reverse();return`<div class="h2">📋 Diario de Compras</div><div class="grid2" style="margin-bottom:14px">${sc("Órdenes",K.length,C.acc)}${sc("Total",fmt(K.reduce((a,c)=>a+c.total,0)),C.acc)}</div>${f.map(d=>`<div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><b style="color:${C.acc2}">${d}</b><b style="color:${C.acc}">${fmt(pf[d].t)}</b></div><div class="ov"><table><thead><tr><th>#</th><th>Proveedor</th><th>Forma</th><th>Total</th><th>Estado</th><th>Usuario</th></tr></thead><tbody>${pf[d].cs.map(c=>`<tr><td style="font-size:11px;color:${C.muted}">#${c.id.slice(-6).toUpperCase()}</td><td>${h(c.proveedor)}</td><td>${c.fp}</td><td style="color:${C.acc};font-weight:600">${fmt(c.total)}</td><td>${bdg(c.estado,c.estado==="pagado"?C.green:C.yel)}</td><td style="font-size:11px;color:${C.muted}">${c.usuario||"-"}</td></tr>`).join("")}</tbody></table></div></div>`).join("")||`<div class="card empty">Sin compras en el rango</div>`}`;}
+function rDC(K){const pf={};K.forEach(c=>{if(!pf[c.fecha])pf[c.fecha]={cs:[],t:0};pf[c.fecha].cs.push(c);pf[c.fecha].t+=c.total;});const f=Object.keys(pf).sort().reverse();return`<div class="h2">📋 Diario de Compras</div><div class="grid2" style="margin-bottom:14px">${sc("Órdenes",K.length,C.acc)}${sc("Total",fmt(K.reduce((a,c)=>a+c.total,0)),C.acc)}</div>${f.map(d=>`<div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><b style="color:${C.acc2}">${d}</b><b style="color:${C.acc}">${fmt(pf[d].t)}</b></div><div class="ov"><table><thead><tr><th>#</th><th>Proveedor</th><th>Forma</th><th>Total</th><th>Estado</th><th>Usuario</th></tr></thead><tbody>${pf[d].cs.map(c=>`<tr><td style="font-size:11px;color:${C.muted}">#${c.id.slice(-6).toUpperCase()}</td><td>${h(c.proveedor)}</td><td>${c.fp}</td><td style="color:${C.acc};font-weight:600">${fmt(c.total)}</td><td>${bdg(c.estado,estColor(c.estado))}</td><td style="font-size:11px;color:${C.muted}">${c.usuario||"-"}</td></tr>`).join("")}</tbody></table></div></div>`).join("")||`<div class="card empty">Sin compras en el rango</div>`}`;}
 function rCP(K){const m={};K.forEach(c=>{if(!m[c.proveedor])m[c.proveedor]={n:0,t:0,compras:[]};m[c.proveedor].n++;m[c.proveedor].t+=c.total;m[c.proveedor].compras.push({fecha:c.fecha,total:c.total});});const lista=Object.entries(m).sort((a,b)=>b[1].t-a[1].t);const gt=K.reduce((a,c)=>a+c.total,0);const rows=lista.map(([p,d])=>{const pc=gt>0?((d.t/gt)*100).toFixed(1):0;return`<tr><td><b>${h(p)}</b></td><td>${d.n}</td><td style="color:${C.acc};font-weight:700">${fmt(d.t)}</td><td><div style="display:flex;align-items:center;gap:6px"><div style="background:#334155;border-radius:4px;height:6px;width:80px"><div style="width:${pc}%;background:${C.acc};height:6px;border-radius:4px"></div></div><span style="font-size:11px">${pc}%</span></div></td><td>${d.compras.map(c=>`<div style="font-size:11px;color:${C.muted}">${c.fecha} · ${fmt(c.total)}</div>`).join("")}</td></tr>`;}).join("");return`<div class="h2">🏭 Compras por Proveedor</div><div class="card"><div class="ov"><table><thead><tr><th>Proveedor</th><th>Órd.</th><th>Total</th><th>%</th><th>Fechas</th></tr></thead><tbody>${rows||`<tr><td colspan="5" class="empty">Sin datos</td></tr>`}${lista.length?`<tr style="background:${C.bg}"><td style="font-weight:700">TOTAL</td><td>${K.length}</td><td style="color:${C.acc};font-weight:700">${fmt(gt)}</td><td>100%</td><td></td></tr>`:""}</tbody></table></div></div>`;}
 function rER(V,K){const ing=V.reduce((a,v)=>a+v.total,0);const co=K.reduce((a,c)=>a+c.total,0);const ut=ing-co;const mg=ing>0?((ut/ing)*100).toFixed(1):0;return`<div class="h2">📈 Estado de Resultados</div><div class="card"><table><tbody>${[["Ingresos",fmt(ing),C.green,true],["Costo de Ventas",fmt(-co),C.red,false],["Utilidad Bruta",fmt(ut),ut>=0?C.green:C.red,true],["Margen Bruto",`${mg}%`,C.yel,true]].map(([l,v,c,b])=>`<tr><td style="padding:7px 10px;font-weight:${b?700:400};border-bottom:1px solid ${C.brd}">${l}</td><td style="padding:7px 10px;text-align:right;color:${c};font-weight:${b?700:400};border-bottom:1px solid ${C.brd}">${v}</td></tr>`).join("")}</tbody></table></div>`;}
 function rFC(V,K){const mE={},mS={};V.forEach(v=>{mE[v.fecha]=(mE[v.fecha]||0)+v.total;});K.forEach(c=>{mS[c.fecha]=(mS[c.fecha]||0)+c.total;});const fs=[...new Set([...Object.keys(mE),...Object.keys(mS)])].sort();let sl=0;const filas=fs.map(f=>{const e=mE[f]||0,s=mS[f]||0;sl+=e-s;return{f,e,s,sl};});const tE=Object.values(mE).reduce((a,b)=>a+b,0),tS=Object.values(mS).reduce((a,b)=>a+b,0);return`<div class="h2">💵 Flujo de Caja</div><div class="grid2" style="margin-bottom:14px">${sc("Entradas",fmt(tE),C.green)}${sc("Salidas",fmt(tS),C.red)}${sc("Saldo Neto",fmt(tE-tS),tE-tS>=0?C.green:C.red)}</div><div class="card"><div class="ov"><table><thead><tr><th>Fecha</th><th>Entradas</th><th>Salidas</th><th>Flujo</th><th>Saldo Acum.</th></tr></thead><tbody>${filas.map(r=>`<tr><td>${r.f}</td><td style="color:${C.green}">${fmt(r.e)}</td><td style="color:${C.red}">${fmt(r.s)}</td><td style="color:${r.e-r.s>=0?C.green:C.red};font-weight:600">${fmt(r.e-r.s)}</td><td style="font-weight:700;color:${r.sl>=0?C.green:C.red}">${fmt(r.sl)}</td></tr>`).join("")||`<tr><td colspan="5" class="empty">Sin movimientos</td></tr>`}</tbody></table></div></div>`;}
