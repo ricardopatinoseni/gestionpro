@@ -544,7 +544,7 @@ const fs=[["Nombre*","nombre","text"],["SKU","sku","text"],["Categoría","catego
 const imgSrc=IF.imagen||"";
 const preview=imgSrc?`<img src="${imgSrc}" class="img-preview">`:`<div class="img-box">📦</div>`;
 const form=`
-<div class="grid2">${fs.map(([l,k,t])=>`<div><label class="lbl">${l}</label><input type="${t}" value="${h(IF[k])}" onchange="IF['${k}']=${t==='number'?'+':''} this.value"></div>`).join("")}</div>
+<div class="grid2">${fs.map(([l,k,t])=>k==="sku"&&IEd!==null?`<div><label class="lbl">${l} 🔒</label><input type="${t}" value="${h(IF[k])}" disabled style="opacity:.6;cursor:not-allowed"></div>`:`<div><label class="lbl">${l}</label><input type="${t}" value="${h(IF[k])}" onchange="IF['${k}']=${t==='number'?'+':''} this.value"></div>`).join("")}</div>
 <div style="border-top:1px solid ${C.brd};margin-top:14px;padding-top:14px">
 <div class="lbl" style="margin-bottom:8px;font-size:12px;color:${C.muted}">IMAGEN DEL PRODUCTO</div>
 <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
@@ -590,7 +590,8 @@ IF.imagen=canvas.toDataURL("image/jpeg",0.7);R();
 }
 async function invSave(){
 if(!IF.nombre)return alert("Ingrese el nombre del producto.");
-const id=IEd!==null?DB.productos[IEd].id:uid();const item={...IF,id};
+const id=IEd!==null?DB.productos[IEd].id:uid();
+const item=IEd!==null?{...IF,id,sku:DB.productos[IEd].sku}:{...IF,id};
 try{
 await fsSet("productos",id,item);
 if(IEd!==null){DB.productos[IEd]=item;await logAct("EDITAR PRODUCTO",item.nombre);}
@@ -770,6 +771,14 @@ return`${bx("← Volver",C.muted,"VD=null;R()",`margin-bottom:10px`)}
 </div>`;
 }
 function vNueva(){VV="nueva";VEd=null;VF={fecha:tod(),cliente:"",clienteIdx:-1,fp:"contado",vence:"",lns:[{id:uid(),pid:"",desc:"",qty:1,pu:0}]};R();}
+function vEditar(i){
+const v=DB.ventas[i];
+if(!puedeModificar(v))return alert("No se puede editar: esta factura ya está pagada o anulada.");
+VEd=i;
+const ci=DB.clientes.findIndex(c=>c.nombre===v.cliente);
+VF={fecha:v.fecha,cliente:ci>=0?String(ci):(v.cliente==="Consumidor Final"?"cf":""),clienteIdx:ci,fp:v.fp,vence:v.vence||"",lns:(v.lineas||[]).map(l=>({...l,id:l.id||uid()}))};
+VV="editar";R();
+}
 function vSelP(i,pi){if(pi==="")return;const p=DB.productos[+pi];VF.lns[i].pid=String(pi);VF.lns[i].desc=p.nombre;VF.lns[i].pu=p.precio;}
 function vAddL(){VF.lns.push({id:uid(),pid:"",desc:"",qty:1,pu:0});R();}
 function vDelL(i){VF.lns.splice(i,1);R();}
@@ -787,14 +796,6 @@ await fsSet("ventas",id,v);DB.ventas.push(v);
 for(const l of lns){if(l.pid!==""){const idx=+l.pid;if(DB.productos[idx]){DB.productos[idx].stock-=l.qty;await fsSet("productos",DB.productos[idx].id,DB.productos[idx]);}}}
 await logAct("NUEVA VENTA",`${cli} · ${fmt(total)}`);VV="lista";VF={fecha:tod(),cliente:"",clienteIdx:-1,fp:"contado",vence:"",lns:[{id:uid(),pid:"",desc:"",qty:1,pu:0}]};R();
 }catch(e){alert("Error: "+e.message);}
-}
-function vEditar(i){
-const v=DB.ventas[i];
-if(!puedeModificar(v))return alert("No se puede editar: esta factura ya está pagada o anulada.");
-VEd=i;
-const ci=DB.clientes.findIndex(c=>c.nombre===v.cliente);
-VF={fecha:v.fecha,cliente:ci>=0?String(ci):(v.cliente==="Consumidor Final"?"cf":""),clienteIdx:ci,fp:v.fp,vence:v.vence||"",lns:(v.lineas||[]).map(l=>({...l,id:l.id||uid()}))};
-VV="editar";R();
 }
 async function vActualizar(){
 if(!VF.cliente)return alert("Seleccione un cliente.");
@@ -918,6 +919,14 @@ return`${bx("← Volver",C.muted,"CD=null;R()",`margin-bottom:10px`)}
 </div>`;
 }
 function cNueva(){CV="nueva";CEd=null;CF={fecha:tod(),proveedor:"",proveedorIdx:-1,fp:"contado",vence:"",lns:[{id:uid(),pid:"",desc:"",qty:1,costo:0}]};R();}
+function cEditar(i){
+const c=DB.compras[i];
+if(!puedeModificar(c))return alert("No se puede editar: esta compra ya está pagada o anulada.");
+CEd=i;
+const pi=DB.proveedores.findIndex(p=>p.nombre===c.proveedor);
+CF={fecha:c.fecha,proveedor:pi>=0?String(pi):"",proveedorIdx:pi,fp:c.fp,vence:c.vence||"",lns:(c.lineas||[]).map(l=>({...l,id:l.id||uid()}))};
+CV="editar";R();
+}
 function cSelP(i,pi){if(pi==="")return;const p=DB.productos[+pi];CF.lns[i].pid=String(pi);CF.lns[i].desc=p.nombre;CF.lns[i].costo=p.costo;}
 function cAddL(){CF.lns.push({id:uid(),pid:"",desc:"",qty:1,costo:0});R();}
 function cDelL(i){CF.lns.splice(i,1);R();}
@@ -935,14 +944,6 @@ await fsSet("compras",id,c);DB.compras.push(c);
 for(const l of lns){if(l.pid!==""){const idx=+l.pid;if(DB.productos[idx]){DB.productos[idx].stock+=l.qty;await fsSet("productos",DB.productos[idx].id,DB.productos[idx]);}}}
 await logAct("NUEVA COMPRA",`${prov} · ${fmt(total)}`);CV="lista";CF={fecha:tod(),proveedor:"",proveedorIdx:-1,fp:"contado",vence:"",lns:[{id:uid(),pid:"",desc:"",qty:1,costo:0}]};R();
 }catch(e){alert("Error: "+e.message);}
-}
-function cEditar(i){
-const c=DB.compras[i];
-if(!puedeModificar(c))return alert("No se puede editar: esta compra ya está pagada o anulada.");
-CEd=i;
-const pi=DB.proveedores.findIndex(p=>p.nombre===c.proveedor);
-CF={fecha:c.fecha,proveedor:pi>=0?String(pi):"",proveedorIdx:pi,fp:c.fp,vence:c.vence||"",lns:(c.lineas||[]).map(l=>({...l,id:l.id||uid()}))};
-CV="editar";R();
 }
 async function cActualizar(){
 if(!CF.proveedor)return alert("Seleccione un proveedor.");
