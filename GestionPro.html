@@ -544,7 +544,7 @@ const fs=[["Nombre*","nombre","text"],["SKU","sku","text"],["Categoría","catego
 const imgSrc=IF.imagen||"";
 const preview=imgSrc?`<img src="${imgSrc}" class="img-preview">`:`<div class="img-box">📦</div>`;
 const form=`
-<div class="grid2">${fs.map(([l,k,t])=>k==="sku"&&IEd!==null?`<div><label class="lbl">${l} 🔒</label><input type="${t}" value="${h(IF[k])}" disabled style="opacity:.6;cursor:not-allowed"></div>`:`<div><label class="lbl">${l}</label><input type="${t}" value="${h(IF[k])}" onchange="IF['${k}']=${t==='number'?'+':''} this.value"></div>`).join("")}</div>
+<div class="grid2">${fs.map(([l,k,t])=>k==="sku"&&IEd!==null&&IF[k]?`<div><label class="lbl">${l} 🔒</label><input type="${t}" value="${h(IF[k])}" disabled style="opacity:.6;cursor:not-allowed"></div>`:`<div><label class="lbl">${l}</label><input type="${t}" value="${h(IF[k])}" onchange="IF['${k}']=${t==='number'?'+':''} this.value"></div>`).join("")}</div>
 <div style="border-top:1px solid ${C.brd};margin-top:14px;padding-top:14px">
 <div class="lbl" style="margin-bottom:8px;font-size:12px;color:${C.muted}">IMAGEN DEL PRODUCTO</div>
 <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
@@ -591,7 +591,7 @@ IF.imagen=canvas.toDataURL("image/jpeg",0.7);R();
 async function invSave(){
 if(!IF.nombre)return alert("Ingrese el nombre del producto.");
 const id=IEd!==null?DB.productos[IEd].id:uid();
-const item=IEd!==null?{...IF,id,sku:DB.productos[IEd].sku}:{...IF,id};
+const item=IEd!==null?{...IF,id,sku:DB.productos[IEd].sku?DB.productos[IEd].sku:IF.sku}:{...IF,id};
 try{
 await fsSet("productos",id,item);
 if(IEd!==null){DB.productos[IEd]=item;await logAct("EDITAR PRODUCTO",item.nombre);}
@@ -615,7 +615,7 @@ const tbId=esC?"tbody-cli":"tbody-prov";
 const fs=esC
 ?[["Nombre*","nombre"],["RUC/Cédula","ruc"],["Email","email"],["Teléfono","telefono"],["Dirección","direccion"],["Crédito días","credito"],["Saldo Inicial ($)","saldoInicial"]]
 :[["Nombre*","nombre"],["RUC","ruc"],["Email","email"],["Teléfono","telefono"],["Dirección","direccion"],["Contacto","contacto"],["Saldo Inicial ($)","saldoInicial"]];
-const camposBase=`<div class="grid2">${fs.map(([l,k])=>k==="ruc"&&EEd!==null?`<div><label class="lbl">${l} 🔒</label><input value="${h(EF[k]||"")}" disabled style="opacity:.6;cursor:not-allowed"></div>`:`<div><label class="lbl">${l}</label><input value="${h(EF[k]||"")}" onchange="EF['${k}']=this.value"></div>`).join("")}</div>`;
+const camposBase=`<div class="grid2">${fs.map(([l,k])=>k==="ruc"&&EEd!==null&&EF[k]?`<div><label class="lbl">${l} 🔒</label><input value="${h(EF[k]||"")}" disabled style="opacity:.6;cursor:not-allowed"></div>`:`<div><label class="lbl">${l}</label><input value="${h(EF[k]||"")}" onchange="EF['${k}']=this.value"></div>`).join("")}</div>`;
 let fechasHtml="";
 if(esC){
 const filas=(EF.fechas||[]).map((f,i)=>`
@@ -658,7 +658,7 @@ ${busq?`<button onclick="${esC?"busqCli":"busqProv"}='';R()" style="background:$
 async function entSave(tipo){
 if(!EF.nombre)return alert("Ingrese el nombre.");
 const id=EEd!==null?DB[tipo][EEd].id:uid();
-const item=EEd!==null?{...EF,id,ruc:DB[tipo][EEd].ruc}:{...EF,id};
+const item=EEd!==null?{...EF,id,ruc:DB[tipo][EEd].ruc?DB[tipo][EEd].ruc:EF.ruc}:{...EF,id};
 try{
 await fsSet(tipo,id,item);
 if(EEd!==null){DB[tipo][EEd]=item;await logAct(`EDITAR ${tipo.toUpperCase()}`,item.nombre);}
