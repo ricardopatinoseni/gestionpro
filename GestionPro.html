@@ -615,7 +615,7 @@ const tbId=esC?"tbody-cli":"tbody-prov";
 const fs=esC
 ?[["Nombre*","nombre"],["RUC/Cédula","ruc"],["Email","email"],["Teléfono","telefono"],["Dirección","direccion"],["Crédito días","credito"],["Saldo Inicial ($)","saldoInicial"]]
 :[["Nombre*","nombre"],["RUC","ruc"],["Email","email"],["Teléfono","telefono"],["Dirección","direccion"],["Contacto","contacto"],["Saldo Inicial ($)","saldoInicial"]];
-const camposBase=`<div class="grid2">${fs.map(([l,k])=>`<div><label class="lbl">${l}</label><input value="${h(EF[k]||"")}" onchange="EF['${k}']=this.value"></div>`).join("")}</div>`;
+const camposBase=`<div class="grid2">${fs.map(([l,k])=>k==="ruc"&&EEd!==null?`<div><label class="lbl">${l} 🔒</label><input value="${h(EF[k]||"")}" disabled style="opacity:.6;cursor:not-allowed"></div>`:`<div><label class="lbl">${l}</label><input value="${h(EF[k]||"")}" onchange="EF['${k}']=this.value"></div>`).join("")}</div>`;
 let fechasHtml="";
 if(esC){
 const filas=(EF.fechas||[]).map((f,i)=>`
@@ -657,7 +657,8 @@ ${busq?`<button onclick="${esC?"busqCli":"busqProv"}='';R()" style="background:$
 }
 async function entSave(tipo){
 if(!EF.nombre)return alert("Ingrese el nombre.");
-const id=EEd!==null?DB[tipo][EEd].id:uid();const item={...EF,id};
+const id=EEd!==null?DB[tipo][EEd].id:uid();
+const item=EEd!==null?{...EF,id,ruc:DB[tipo][EEd].ruc}:{...EF,id};
 try{
 await fsSet(tipo,id,item);
 if(EEd!==null){DB[tipo][EEd]=item;await logAct(`EDITAR ${tipo.toUpperCase()}`,item.nombre);}
