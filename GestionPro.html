@@ -20,6 +20,8 @@ body{background:#0f172a;color:#f1f5f9;font-family:Inter,system-ui,sans-serif;fon
 .grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;align-items:flex-end;margin-bottom:8px}
 .h2{font-size:15px;font-weight:700;margin-bottom:10px}
 input,select{background:#0f172a;border:1px solid #334155;border-radius:6px;padding:7px 10px;color:#f1f5f9;font-size:13px;width:100%}
+textarea{background:#0f172a;border:1px solid #334155;border-radius:6px;padding:7px 10px;color:#f1f5f9;font-size:13px;width:100%;font-family:inherit;resize:vertical}
+textarea:focus{outline:1px solid #6366f1}
 input:focus,select:focus{outline:1px solid #6366f1}
 label.lbl{font-size:11px;color:#94a3b8;margin-bottom:4px;display:block}
 table{width:100%;border-collapse:collapse}
@@ -113,7 +115,7 @@ let VF={fecha:tod(),cliente:"",clienteIdx:-1,fp:"contado",vence:"",lns:[{id:uid(
 let CF={fecha:tod(),proveedor:"",proveedorIdx:-1,fp:"contado",vence:"",lns:[{id:uid(),pid:"",desc:"",qty:1,costo:0}]};
 let IF={nombre:"",sku:"",categoria:"",unidad:"unidad",precio:0,costo:0,stock:0,stockMin:5,imagen:""};
 let IEd=null;
-let EF={nombre:"",ruc:"",email:"",telefono:"",direccion:"",credito:0,contacto:"",saldoInicial:0,fechas:[{tipo:"Cumpleaños",fecha:""},{tipo:"Aniversario",fecha:""}]};
+let EF={nombre:"",ruc:"",email:"",telefono:"",direccion:"",credito:0,contacto:"",saldoInicial:0,notas:"",fechas:[{tipo:"Cumpleaños",fecha:""},{tipo:"Aniversario",fecha:""}]};
 let EEd=null;
 let VV="lista",VD=null,CV="lista",CD=null,RCS="";
 let VEd=null,CEd=null;
@@ -615,7 +617,7 @@ const tbId=esC?"tbody-cli":"tbody-prov";
 const fs=esC
 ?[["Nombre*","nombre"],["RUC/Cédula","ruc"],["Email","email"],["Teléfono","telefono"],["Dirección","direccion"],["Crédito días","credito"],["Saldo Inicial ($)","saldoInicial"]]
 :[["Nombre*","nombre"],["RUC","ruc"],["Email","email"],["Teléfono","telefono"],["Dirección","direccion"],["Contacto","contacto"],["Saldo Inicial ($)","saldoInicial"]];
-const camposBase=`<div class="grid2">${fs.map(([l,k])=>k==="ruc"&&EEd!==null&&EF[k]?`<div><label class="lbl">${l} 🔒</label><input value="${h(EF[k]||"")}" disabled style="opacity:.6;cursor:not-allowed"></div>`:`<div><label class="lbl">${l}</label><input value="${h(EF[k]||"")}" onchange="EF['${k}']=this.value"></div>`).join("")}</div>`;
+const camposBase=`<div class="grid2">${fs.map(([l,k])=>k==="ruc"&&EEd!==null&&EF[k]?`<div><label class="lbl">${l} 🔒</label><input value="${h(EF[k]||"")}" disabled style="opacity:.6;cursor:not-allowed"></div>`:`<div><label class="lbl">${l}</label><input value="${h(EF[k]||"")}" onchange="EF['${k}']=this.value"></div>`).join("")}<div><label class="lbl">Notas</label><textarea rows="10" oninput="EF.notas=this.value">${h(EF.notas||"")}</textarea></div></div>`;
 let fechasHtml="";
 if(esC){
 const filas=(EF.fechas||[]).map((f,i)=>`
@@ -663,11 +665,11 @@ try{
 await fsSet(tipo,id,item);
 if(EEd!==null){DB[tipo][EEd]=item;await logAct(`EDITAR ${tipo.toUpperCase()}`,item.nombre);}
 else{DB[tipo].push(item);await logAct(`NUEVO ${tipo.toUpperCase()}`,item.nombre);}
-EF={nombre:"",ruc:"",email:"",telefono:"",direccion:"",credito:0,contacto:"",saldoInicial:0,fechas:[{tipo:"Cumpleaños",fecha:""},{tipo:"Aniversario",fecha:""}]};
+EF={nombre:"",ruc:"",email:"",telefono:"",direccion:"",credito:0,contacto:"",saldoInicial:0,notas:"",fechas:[{tipo:"Cumpleaños",fecha:""},{tipo:"Aniversario",fecha:""}]};
 EEd=null;R();
 }catch(e){alert("Error: "+e.message);}
 }
-function entCancel(){EF={nombre:"",ruc:"",email:"",telefono:"",direccion:"",credito:0,contacto:"",saldoInicial:0,fechas:[{tipo:"Cumpleaños",fecha:""},{tipo:"Aniversario",fecha:""}]};EEd=null;R();}
+function entCancel(){EF={nombre:"",ruc:"",email:"",telefono:"",direccion:"",credito:0,contacto:"",saldoInicial:0,notas:"",fechas:[{tipo:"Cumpleaños",fecha:""},{tipo:"Aniversario",fecha:""}]};EEd=null;R();}
 function entEd(tipo,i){const e=DB[tipo][i];EF={...e,fechas:e.fechas&&e.fechas.length?[...e.fechas]:[{tipo:"Cumpleaños",fecha:""},{tipo:"Aniversario",fecha:""}]};EEd=i;R();}
 async function entDel(tipo,i){
 if(!confirm("¿Eliminar?"))return;
