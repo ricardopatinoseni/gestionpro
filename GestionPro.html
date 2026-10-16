@@ -511,7 +511,7 @@ const items=alertas.map(a=>`<div style="font-size:13px;margin-bottom:4px">🔔 <
 return`<div class="alert-banner"><div style="font-weight:700;color:${C.yel};margin-bottom:6px">⚠ Fechas Importantes</div>${items}</div>`;
 }
 function buildDash(){
-const tv=DB.ventas.reduce((a,v)=>a+v.total,0);const tc=DB.compras.reduce((a,c)=>a+c.total,0);
+const tv=DB.ventas.filter(v=>v.estado!=="anulado"&&!v.esSaldoInicial).reduce((a,v)=>a+v.total,0);const tc=DB.compras.filter(c=>c.estado!=="anulado"&&!c.esSaldoInicial).reduce((a,c)=>a+c.total,0);
 const cxcP=DB.ventas.filter(v=>v.estado==="pendiente");const cxpP=DB.compras.filter(c=>c.estado==="pendiente");
 const sb=[];
 const activos=DB.productos.filter(p=>p.stock>0);const tu=activos.reduce((a,p)=>a+p.stock,0);const vs=activos.reduce((a,p)=>a+(p.stock*p.costo),0);
@@ -617,7 +617,7 @@ const tbId=esC?"tbody-cli":"tbody-prov";
 const fs=esC
 ?[["Nombre*","nombre"],["RUC/Cédula","ruc"],["Email","email"],["Teléfono","telefono"],["Dirección","direccion"],["Crédito días","credito"],["Saldo Inicial ($)","saldoInicial"]]
 :[["Nombre*","nombre"],["RUC","ruc"],["Email","email"],["Teléfono","telefono"],["Dirección","direccion"],["Contacto","contacto"],["Saldo Inicial ($)","saldoInicial"]];
-const camposBase=`<div class="grid2">${fs.map(([l,k])=>k==="ruc"&&EEd!==null&&EF[k]?`<div><label class="lbl">${l} 🔒</label><input value="${h(EF[k]||"")}" disabled style="opacity:.6;cursor:not-allowed"></div>`:`<div><label class="lbl">${l}</label><input value="${h(EF[k]||"")}" onchange="EF['${k}']=this.value"></div>`).join("")}<div><label class="lbl">Notas</label><textarea rows="10" oninput="EF.notas=this.value">${h(EF.notas||"")}</textarea></div></div>`;
+const camposBase=`<div class="grid2">${fs.map(([l,k])=>(k==="ruc"&&EEd!==null&&EF[k])||(k==="saldoInicial"&&EEd!==null&&EF.siGen)?`<div><label class="lbl">${l} 🔒</label><input value="${h(EF[k]||"")}" disabled style="opacity:.6;cursor:not-allowed"></div>`:`<div><label class="lbl">${l}</label><input value="${h(EF[k]||"")}" onchange="EF['${k}']=this.value"></div>`).join("")}<div><label class="lbl">Notas</label><textarea rows="10" oninput="EF.notas=this.value">${h(EF.notas||"")}</textarea></div></div>`;
 let fechasHtml="";
 if(esC){
 const filas=(EF.fechas||[]).map((f,i)=>`
@@ -661,7 +661,19 @@ async function entSave(tipo){
 if(!EF.nombre)return alert("Ingrese el nombre.");
 const id=EEd!==null?DB[tipo][EEd].id:uid();
 const item=EEd!==null?{...EF,id,ruc:DB[tipo][EEd].ruc?DB[tipo][EEd].ruc:EF.ruc}:{...EF,id};
+const prev=EEd!==null?DB[tipo][EEd]:null;
+if(prev&&prev.siGen){item.saldoInicial=prev.saldoInicial;item.siGen=true;}
+const si=+item.saldoInicial||0;
+let genSI=false;
+if(!item.siGen&&si>0){genSI=EEd===null?true:confirm(`El saldo inicial de ${fmt(si)} de "${item.nombre}" aún no está en ${tipo==="clientes"?"Cuentas por Cobrar":"Cuentas por Pagar"}. ¿Generarlo ahora?`);}
+if(genSI)item.siGen=true;
 try{
+if(genSI){
+const did=uid();
+const base={id:did,fecha:tod(),fp:"credito",vence:"",subtotal:si,iva:0,total:si,saldo:si,estado:"pendiente",pagos:[],usuario:CU?.email||"",esSaldoInicial:true};
+if(tipo==="clientes"){const v={...base,cliente:item.nombre,lineas:[{id:uid(),pid:"",desc:"Saldo inicial",qty:1,pu:si}]};await fsSet("ventas",did,v);DB.ventas.push(v);await logAct("SALDO INICIAL CxC",`${item.nombre} · ${fmt(si)}`);}
+else{const c={...base,proveedor:item.nombre,lineas:[{id:uid(),pid:"",desc:"Saldo inicial",qty:1,costo:si}]};await fsSet("compras",did,c);DB.compras.push(c);await logAct("SALDO INICIAL CxP",`${item.nombre} · ${fmt(si)}`);}
+}
 await fsSet(tipo,id,item);
 if(EEd!==null){DB[tipo][EEd]=item;await logAct(`EDITAR ${tipo.toUpperCase()}`,item.nombre);}
 else{DB[tipo].push(item);await logAct(`NUEVO ${tipo.toUpperCase()}`,item.nombre);}
@@ -1073,8 +1085,8 @@ const filtro=`<div class="card" style="margin-bottom:14px"><div style="display:f
 <button onclick="ST.rD='${new Date(Date.now()-6*86400000).toISOString().split('T')[0]}';ST.rH='${tod()}';R()" style="background:#94a3b8;color:#fff;border:none;border-radius:6px;padding:7px 12px;cursor:pointer;font-size:12px;font-weight:600">7 días</button>
 <button onclick="ST.rD='2000-01-01';ST.rH='${tod()}';R()" style="background:#94a3b8;color:#fff;border:none;border-radius:6px;padding:7px 12px;cursor:pointer;font-size:12px;font-weight:600">Todo</button>
 </div></div>`;
-const V=DB.ventas.filter(v=>v.fecha>=ST.rD&&v.fecha<=ST.rH);
-const K=DB.compras.filter(c=>c.fecha>=ST.rD&&c.fecha<=ST.rH);
+const V=DB.ventas.filter(v=>v.fecha>=ST.rD&&v.fecha<=ST.rH&&v.estado!=="anulado"&&!v.esSaldoInicial);
+const K=DB.compras.filter(c=>c.fecha>=ST.rD&&c.fecha<=ST.rH&&c.estado!=="anulado"&&!c.esSaldoInicial);
 let body="";
 if(ST.sub==="dv")body=rDV(V);else if(ST.sub==="vc")body=rVC(V);else if(ST.sub==="vp")body=rVP(V);
 else if(ST.sub==="rpc")body=rRPC(V);else if(ST.sub==="dc")body=rDC(K);else if(ST.sub==="cp")body=rCP(K);
