@@ -81,6 +81,35 @@ td{padding:7px 10px;font-size:13px;border-bottom:1px solid #334155;vertical-alig
 .btn-srch:hover{background:#6366f133}
 .input-with-srch{display:flex;gap:6px;align-items:flex-end}
 .input-with-srch>div{flex:1}
+
+/* ── IMPRESIÓN / PDF ── */
+#print-area{display:none}
+@media print{
+body{background:#fff!important;color:#000!important}
+body>*:not(#print-area){display:none!important}
+#print-area{display:block!important;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.35}
+#print-area,#print-area *{background:transparent!important;color:#000!important;border-color:#888!important;box-shadow:none!important}
+#print-area table{width:100%;border-collapse:collapse;margin:6px 0}
+#print-area th,#print-area td{border:1px solid #888!important;padding:4px 6px!important;font-size:11px!important}
+#print-area th{background:#e8e8e8!important}
+#print-area .r{text-align:right!important}
+#print-area thead{display:table-header-group}
+#print-area tr{page-break-inside:avoid}
+#print-area .card{border:none!important;padding:0!important;margin:0 0 8px!important}
+#print-area .stat-card{border:1px solid #888!important;border-radius:4px;padding:6px 8px!important}
+#print-area div[style*="height:6px"]{display:none!important}
+#print-area .h2{font-size:15px;margin:6px 0 8px}
+#print-area .p-head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000!important;padding-bottom:8px;margin-bottom:10px}
+#print-area .p-emp{font-size:16px;font-weight:700}
+#print-area .p-tit{font-size:15px;font-weight:700}
+#print-area .p-info{display:grid;grid-template-columns:1fr 1fr;gap:3px 18px;margin:8px 0 10px}
+#print-area .p-tot{text-align:right;margin-top:8px;font-size:13px}
+#print-area .p-blk{margin-top:12px}
+#print-area .p-notas{white-space:pre-wrap;border:1px solid #888!important;padding:6px 8px;min-height:40px;margin-top:4px}
+#print-area .p-anul{font-size:22px;font-weight:700;border:3px solid #000!important;display:inline-block;padding:2px 14px;margin:4px 0 8px}
+#print-area .p-img{max-width:160px;max-height:160px;object-fit:cover;border:1px solid #888!important;margin:6px 0}
+#print-area .p-pie{margin-top:18px;font-size:10px;border-top:1px solid #888!important;padding-top:6px}
+}
 </style>
 </head>
 <body>
@@ -382,7 +411,7 @@ return`<tr>
 <td style="color:${C.muted};font-size:12px">${h(p.sku)}</td><td><b>${h(p.nombre)}</b></td><td>${h(p.categoria)}</td>
 <td>${fmt(p.precio)}</td><td>${fmt(p.costo)}</td>
 <td>${bdg(`${p.stock} ${p.unidad}`,C.green)}</td>
-<td>${bx("✏️",C.acc,`invEd(${ri})`,`margin-right:4px;padding:4px 8px`)}${bx("🗑",C.red,`invDel(${ri})`,`padding:4px 8px`)}</td>
+<td>${bx("🖨",C.muted,`printFicha('productos',${ri})`,`margin-right:4px;padding:4px 8px`)}${bx("✏️",C.acc,`invEd(${ri})`,`margin-right:4px;padding:4px 8px`)}${bx("🗑",C.red,`invDel(${ri})`,`padding:4px 8px`)}</td>
 </tr>`;
 }).join("")||`<tr><td colspan="8" class="empty">Sin resultados</td></tr>`;
 }
@@ -395,7 +424,7 @@ const si=e.saldoInicial>0?bdg(`$${e.saldoInicial}`,C.red):"";
 return`<tr><td><b>${h(e.nombre)}</b></td><td>${h(e.ruc)}</td><td>${h(e.email)}</td><td>${h(e.telefono)}</td>
 <td>${esC?`${e.credito} días`:h(e.contacto)}</td>
 ${esC?`<td>${si||"-"}</td><td>${fds||"-"}</td>`:`<td>${si||"-"}</td>`}
-<td>${bx("✏️",C.acc,`entEd('${tipo}',${i})`,`margin-right:4px;padding:4px 8px`)}${bx("🗑",C.red,`entDel('${tipo}',${i})`,`padding:4px 8px`)}</td></tr>`;
+<td>${bx("🖨",C.muted,`printFicha('${tipo}',${i})`,`margin-right:4px;padding:4px 8px`)}${bx("✏️",C.acc,`entEd('${tipo}',${i})`,`margin-right:4px;padding:4px 8px`)}${bx("🗑",C.red,`entDel('${tipo}',${i})`,`padding:4px 8px`)}</td></tr>`;
 }).join("")||`<tr><td colspan="${esC?8:7}" class="empty">Sin resultados</td></tr>`;
 }
 function refreshTabla(id,html){const el=document.getElementById(id);if(el)el.innerHTML=html;}
@@ -784,7 +813,7 @@ ${bx("+ Línea",C.acc2,"vAddL()",`margin-top:4px`)}
 function buildVDet(i){
 const v=DB.ventas[i];
 const rows=(v.lineas||[]).map(l=>`<tr><td>${h(l.desc)}</td><td>${l.qty}</td><td>${fmt(l.pu)}</td><td>${fmt(l.qty*l.pu)}</td></tr>`).join("");
-return`${bx("← Volver",C.muted,"VD=null;R()",`margin-bottom:10px`)}
+return`<div style="display:flex;gap:8px;margin-bottom:10px">${bx("← Volver",C.muted,"VD=null;R()")}${bx("🖨 Imprimir / PDF",C.acc,`printVenta(${i})`)}</div>
 <div class="card"><div class="h2">Factura #${v.id.slice(-6).toUpperCase()}</div>
 <div class="grid2" style="margin-bottom:14px">${[["Fecha",v.fecha],["Cliente",v.cliente],["Forma Pago",v.fp],["Estado",v.estado],["Usuario",v.usuario||"-"]].map(([l,val])=>`<div><span style="color:${C.muted};font-size:12px">${l}: </span><b>${h(val)}</b></div>`).join("")}</div>
 <div class="ov"><table><thead><tr><th>Descripción</th><th>Cant.</th><th>P.Unit.</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table></div>
@@ -932,7 +961,7 @@ ${bx("+ Línea",C.acc2,"cAddL()",`margin-top:4px`)}
 function buildCDet(i){
 const c=DB.compras[i];
 const rows=(c.lineas||[]).map(l=>`<tr><td>${h(l.desc)}</td><td>${l.qty}</td><td>${fmt(l.costo)}</td><td>${fmt(l.qty*l.costo)}</td></tr>`).join("");
-return`${bx("← Volver",C.muted,"CD=null;R()",`margin-bottom:10px`)}
+return`<div style="display:flex;gap:8px;margin-bottom:10px">${bx("← Volver",C.muted,"CD=null;R()")}${bx("🖨 Imprimir / PDF",C.acc,`printCompra(${i})`)}</div>
 <div class="card"><div class="h2">Compra #${c.id.slice(-6).toUpperCase()}</div>
 <div class="grid2" style="margin-bottom:14px">${[["Fecha",c.fecha],["Proveedor",c.proveedor],["Forma Pago",c.fp],["Estado",c.estado],["Usuario",c.usuario||"-"]].map(([l,val])=>`<div><span style="color:${C.muted};font-size:12px">${l}: </span><b>${h(val)}</b></div>`).join("")}</div>
 <div class="ov"><table><thead><tr><th>Descripción</th><th>Cant.</th><th>Costo</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table></div>
@@ -1113,6 +1142,7 @@ const filtro=`<div class="card" style="margin-bottom:14px"><div style="display:f
 <button onclick="ST.rD='${defDesde()}';ST.rH='${tod()}';R()" style="background:#94a3b8;color:#fff;border:none;border-radius:6px;padding:7px 12px;cursor:pointer;font-size:12px;font-weight:600">Este mes</button>
 <button onclick="ST.rD='${new Date(Date.now()-6*86400000).toISOString().split('T')[0]}';ST.rH='${tod()}';R()" style="background:#94a3b8;color:#fff;border:none;border-radius:6px;padding:7px 12px;cursor:pointer;font-size:12px;font-weight:600">7 días</button>
 <button onclick="ST.rD='2000-01-01';ST.rH='${tod()}';R()" style="background:#94a3b8;color:#fff;border:none;border-radius:6px;padding:7px 12px;cursor:pointer;font-size:12px;font-weight:600">Todo</button>
+${bx("🖨 Imprimir / PDF",C.acc,"printReporte()","margin-left:auto")}
 </div></div>`;
 const V=DB.ventas.filter(v=>v.fecha>=ST.rD&&v.fecha<=ST.rH&&v.estado!=="anulado"&&!v.esSaldoInicial);
 const K=DB.compras.filter(c=>c.fecha>=ST.rD&&c.fecha<=ST.rH&&c.estado!=="anulado"&&!c.esSaldoInicial);
@@ -1122,7 +1152,7 @@ else if(ST.sub==="rpc")body=rRPC(V);else if(ST.sub==="dc")body=rDC(K);else if(ST
 else if(ST.sub==="er")body=rER(V,K);else if(ST.sub==="fc")body=rFC(V,K);else if(ST.sub==="ca")body=rCA();
 else if(ST.sub==="ro")body=rRO(V);else if(ST.sub==="fp")body=rFP(V);else if(ST.sub==="rc")body=rRC(V);
 else if(ST.sub==="inv")body=rINV();
-return`<div class="sub-tabs">${tabs}</div>${filtro}${body}`;
+return`<div class="sub-tabs">${tabs}</div>${filtro}<div id="rep-body">${body}</div>`;
 }
 function rDV(V){const pf={};V.forEach(v=>{if(!pf[v.fecha])pf[v.fecha]={vs:[],t:0};pf[v.fecha].vs.push(v);pf[v.fecha].t+=v.total;});const f=Object.keys(pf).sort().reverse();return`<div class="h2">📋 Diario de Ventas</div><div class="grid2" style="margin-bottom:14px">${sc("Facturas",V.length,C.acc)}${sc("Total",fmt(V.reduce((a,v)=>a+v.total,0)),C.green)}</div>${f.map(d=>`<div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><b style="color:${C.acc2}">${d}</b><b style="color:${C.green}">${fmt(pf[d].t)}</b></div><div class="ov"><table><thead><tr><th>#</th><th>Cliente</th><th>Forma</th><th>Total</th><th>Estado</th><th>Usuario</th></tr></thead><tbody>${pf[d].vs.map(v=>`<tr><td style="font-size:11px;color:${C.muted}">#${v.id.slice(-6).toUpperCase()}</td><td>${h(v.cliente)}</td><td>${v.fp}</td><td style="color:${C.green};font-weight:600">${fmt(v.total)}</td><td>${bdg(v.estado,estColor(v.estado))}</td><td style="font-size:11px;color:${C.muted}">${v.usuario||"-"}</td></tr>`).join("")}</tbody></table></div></div>`).join("")||`<div class="card empty">Sin ventas en el rango</div>`}`;}
 function rVC(V){const m={};V.forEach(v=>{if(!m[v.cliente])m[v.cliente]={n:0,t:0};m[v.cliente].n++;m[v.cliente].t+=v.total;});const lista=Object.entries(m).sort((a,b)=>b[1].t-a[1].t);const gt=V.reduce((a,v)=>a+v.total,0);const rows=lista.map(([c,d])=>{const p=gt>0?((d.t/gt)*100).toFixed(1):0;return`<tr><td><b>${h(c)}</b></td><td>${d.n}</td><td style="color:${C.green};font-weight:700">${fmt(d.t)}</td><td><div style="display:flex;align-items:center;gap:6px"><div style="background:#334155;border-radius:4px;height:6px;width:80px"><div style="width:${p}%;background:${C.green};height:6px;border-radius:4px"></div></div><span style="font-size:11px">${p}%</span></div></td></tr>`;}).join("");return`<div class="h2">👥 Ventas por Cliente</div><div class="card"><div class="ov"><table><thead><tr><th>Cliente</th><th>Fact.</th><th>Total</th><th>%</th></tr></thead><tbody>${rows||`<tr><td colspan="4" class="empty">Sin datos</td></tr>`}${lista.length?`<tr style="background:${C.bg}"><td style="font-weight:700">TOTAL</td><td>${V.length}</td><td style="color:${C.green};font-weight:700">${fmt(gt)}</td><td>100%</td></tr>`:""}</tbody></table></div></div>`;}
@@ -1293,6 +1323,92 @@ function rINV(){
   </div>`;
 }
 
+
+/* ════════════════════════════════════════
+   IMPRESIÓN / PDF  (impresora o "Guardar como PDF" desde el diálogo del navegador)
+   ════════════════════════════════════════ */
+// Datos opcionales para el encabezado de lo que se imprime
+const EMPRESA={nombre:"",ruc:"",dir:"",tel:""};
+const safe=t=>String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9._-]+/g,"_").replace(/^_+|_+$/g,"").slice(0,80);
+const kv=(l,v)=>{const t=(v===undefined||v===null||String(v)==="")?"-":String(v);return`<div><b>${l}:</b> ${h(t)}</div>`;};
+const pStyle=o=>`<style>@page{size:A4 ${o};margin:12mm}</style>`;
+function pHead(titulo,sub){
+return`<div class="p-head"><div><div class="p-emp">${h(EMPRESA.nombre||"GestiónPro")}</div>${EMPRESA.ruc?`<div>RUC: ${h(EMPRESA.ruc)}</div>`:""}${EMPRESA.dir?`<div>${h(EMPRESA.dir)}</div>`:""}${EMPRESA.tel?`<div>Tel: ${h(EMPRESA.tel)}</div>`:""}</div>
+<div style="text-align:right"><div class="p-tit">${h(titulo)}</div>${sub?`<div>${h(sub)}</div>`:""}<div style="font-size:10px">Impreso: ${new Date().toLocaleString("es-EC")} · ${h(CU?.email||"")}</div></div></div>`;
+}
+function doPrint(fileName,html){
+let pa=document.getElementById("print-area");
+if(!pa){pa=document.createElement("div");pa.id="print-area";document.body.appendChild(pa);}
+pa.innerHTML=html;
+const old=document.title;document.title=safe(fileName)||old;
+window.addEventListener("afterprint",()=>{document.title=old;pa.innerHTML="";},{once:true});
+const imgs=[...pa.querySelectorAll("img")].filter(im=>!im.complete);
+if(!imgs.length){window.print();return;}
+let n=imgs.length;const dec=()=>{if(--n===0)window.print();};
+imgs.forEach(im=>{im.onload=dec;im.onerror=dec;});
+setTimeout(()=>{if(n>0){n=-999;window.print();}},1500);
+}
+function printReporte(){
+const src=document.getElementById("rep-body");if(!src)return;
+const c=src.cloneNode(true);
+c.querySelectorAll("button,select,input,textarea,label.lbl").forEach(e=>e.remove());
+c.querySelectorAll("span").forEach(e=>{if(e.textContent.trim()==="Filtrar:")e.remove();});
+const sb=SUBS.find(x=>x.k===ST.sub);
+const nombre=sb?sb.l.replace(/^[^A-Za-zÁ-ú0-9]+/,""):"Reporte";
+let sub=`Del ${ST.rD} al ${ST.rH}`;
+if(ST.sub==="ca")sub=`Cartera al ${tod()}`;
+else if(ST.sub==="inv")sub=`Existencias al ${tod()}`;
+else if(ST.sub==="rc")sub=`Cliente: ${RCS||"Todos"} · ${sub}`;
+doPrint(`Reporte_${nombre}_${ST.sub==="ca"||ST.sub==="inv"?tod():ST.rD+"_a_"+ST.rH}`,pStyle("landscape")+pHead("Reporte: "+nombre,sub)+c.innerHTML);
+}
+function printVenta(i){
+const v=DB.ventas[i];if(!v)return;
+const c=DB.clientes.find(x=>x.nombre===v.cliente)||{};
+const lin=(v.lineas||[]).map(l=>`<tr><td>${h(l.desc)}</td><td class="r">${l.qty}</td><td class="r">${fmt(l.pu)}</td><td class="r">${fmt(l.qty*l.pu)}</td></tr>`).join("");
+const pg=v.pagos||[];
+const pagosHtml=pg.length?`<div class="p-blk"><b>Pagos recibidos</b><table><thead><tr><th>Fecha</th><th>Forma</th><th class="r">Monto</th></tr></thead><tbody>${pg.map(p=>`<tr><td>${h(p.fecha)}</td><td>${h(p.forma)}</td><td class="r">${fmt(p.monto)}</td></tr>`).join("")}</tbody></table></div>`:"";
+const html=pStyle("portrait")+pHead("Comprobante de venta","N° "+v.id.slice(-6).toUpperCase())+
+(v.estado==="anulado"?`<div class="p-anul">ANULADO</div>`:"")+
+`<div class="p-info">${kv("Fecha",v.fecha)}${kv("Estado",v.estado)}${kv("Cliente",v.cliente)}${kv("RUC/Cédula",c.ruc)}${kv("Forma de pago",v.fp)}${kv("Vence",v.vence)}${kv("Teléfono",c.telefono)}${kv("Registrado por",v.usuario)}</div>`+
+`<table><thead><tr><th>Descripción</th><th class="r">Cant.</th><th class="r">P. Unit.</th><th class="r">Total</th></tr></thead><tbody>${lin}</tbody></table>`+
+`<div class="p-tot"><div>Total: <b>${fmt(v.total)}</b></div>${v.estado!=="anulado"?`<div>Cobrado: ${fmt(v.total-v.saldo)}</div><div>Saldo: <b>${fmt(v.saldo)}</b></div>`:""}</div>`+
+pagosHtml+`<div class="p-pie">Documento interno de control. No es una factura autorizada por el SRI.</div>`;
+doPrint(`Venta_${v.id.slice(-6).toUpperCase()}_${v.cliente}`,html);
+}
+function printCompra(i){
+const k=DB.compras[i];if(!k)return;
+const p=DB.proveedores.find(x=>x.nombre===k.proveedor)||{};
+const lin=(k.lineas||[]).map(l=>`<tr><td>${h(l.desc)}</td><td class="r">${l.qty}</td><td class="r">${fmt(l.costo)}</td><td class="r">${fmt(l.qty*l.costo)}</td></tr>`).join("");
+const pg=k.pagos||[];
+const pagosHtml=pg.length?`<div class="p-blk"><b>Pagos realizados</b><table><thead><tr><th>Fecha</th><th>Forma</th><th class="r">Monto</th></tr></thead><tbody>${pg.map(x=>`<tr><td>${h(x.fecha)}</td><td>${h(x.forma)}</td><td class="r">${fmt(x.monto)}</td></tr>`).join("")}</tbody></table></div>`:"";
+const html=pStyle("portrait")+pHead("Comprobante de compra","N° "+k.id.slice(-6).toUpperCase())+
+(k.estado==="anulado"?`<div class="p-anul">ANULADO</div>`:"")+
+`<div class="p-info">${kv("Fecha",k.fecha)}${kv("Estado",k.estado)}${kv("Proveedor",k.proveedor)}${kv("RUC",p.ruc)}${kv("Forma de pago",k.fp)}${kv("Vence",k.vence)}${kv("Teléfono",p.telefono)}${kv("Registrado por",k.usuario)}</div>`+
+`<table><thead><tr><th>Descripción</th><th class="r">Cant.</th><th class="r">Costo</th><th class="r">Total</th></tr></thead><tbody>${lin}</tbody></table>`+
+`<div class="p-tot"><div>Total: <b>${fmt(k.total)}</b></div>${k.estado!=="anulado"?`<div>Pagado: ${fmt(k.total-k.saldo)}</div><div>Saldo: <b>${fmt(k.saldo)}</b></div>`:""}</div>`+
+pagosHtml+`<div class="p-pie">Documento interno de control. No es una factura autorizada por el SRI.</div>`;
+doPrint(`Compra_${k.id.slice(-6).toUpperCase()}_${k.proveedor}`,html);
+}
+function printFicha(tipo,i){
+const e=DB[tipo][i];if(!e)return;
+let titulo="",filas=[],extra="",img="",pie="";
+if(tipo==="productos"){
+titulo="Ficha de producto";
+filas=[["SKU",e.sku],["Nombre",e.nombre],["Categoría",e.categoria],["Unidad",e.unidad],["Precio",fmt(e.precio||0)],["Costo",fmt(e.costo||0)],["Stock",e.stock],["Valor al costo",fmt((+e.stock||0)*(+e.costo||0))]];
+if(e.imagen)img=`<img src="${e.imagen}" class="p-img">`;
+}else{
+const esC=tipo==="clientes";
+titulo=esC?"Ficha de cliente":"Ficha de proveedor";
+filas=esC
+?[["Nombre",e.nombre],["RUC/Cédula",e.ruc],["Email",e.email],["Teléfono",e.telefono],["Dirección",e.direccion],["Crédito",(e.credito||0)+" días"],["Saldo inicial",+e.saldoInicial>0?fmt(e.saldoInicial):""]]
+:[["Nombre",e.nombre],["RUC",e.ruc],["Email",e.email],["Teléfono",e.telefono],["Dirección",e.direccion],["Contacto",e.contacto],["Saldo inicial",+e.saldoInicial>0?fmt(e.saldoInicial):""]];
+const fds=esC?(e.fechas||[]).filter(f=>f.tipo&&f.fecha):[];
+if(fds.length)extra+=`<div class="p-blk"><b>Fechas importantes</b>${fds.map(f=>`<div>${h(f.tipo)}: ${h(f.fecha)}</div>`).join("")}</div>`;
+extra+=`<div class="p-blk"><b>Notas</b><div class="p-notas">${h(e.notas||"")}</div></div>`;
+}
+const html=pStyle("portrait")+pHead(titulo,e.nombre||"")+img+`<div class="p-info">${filas.map(([l,v])=>kv(l,v)).join("")}</div>`+extra;
+doPrint(`${titulo.replace("Ficha de ","Ficha_")}_${e.nombre}`,html);
+}
 </script>
 </body>
 </html>
