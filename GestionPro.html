@@ -121,7 +121,7 @@ let VV="lista",VD=null,CV="lista",CD=null,RCS="";
 let VEd=null,CEd=null;
 let PM={monto:0,forma:"transferencia"};
 let LOGS=[];
-let busqInv="",busqCli="",busqProv="",busqVen="",busqCom="";let verAgotados=false;
+let busqInv="",busqCli="",busqProv="",busqVen="",busqCom="";let verAgotados=false;let busqCxc="",busqCxp="";
 
 /* ── ESTADO DEL MODAL DE BÚSQUEDA ── */
 let SRCH={open:false,tipo:"",linea:-1,q:"",formCtx:""};
@@ -437,6 +437,12 @@ const ri=DB.compras.indexOf(c);
 return`<tr><td style="color:#94a3b8;font-size:11px">#${c.id.slice(-6).toUpperCase()}</td><td>${c.fecha}</td><td>${h(c.proveedor)}</td><td>${c.fp}</td><td style="color:#6366f1;font-weight:600">${fmt(c.total)}</td><td>${bdg(c.estado,estColor(c.estado))}</td><td>${bx("Ver","#6366f1",`cVer(${ri})`,`padding:4px 8px;margin-right:4px`)}${puedeModificar(c)?bx("✏️",C.yel,`cEditar(${ri})`,`padding:4px 8px;margin-right:4px`)+bx("🚫",C.red,`cAnular(${ri})`,`padding:4px 8px`):""}</td></tr>`;
 }).join("")||`<tr><td colspan="7" class="empty">Sin resultados</td></tr>`;
 refreshTabla("tbody-com",rows);
+}else if(tab==="CxC"){
+busqCxc=q;const pc=pendCxC();
+refreshTabla("tbody-cxc",rowsCxC(pc));refreshTabla("stats-cxc",statsCxC(pc));
+}else if(tab==="CxP"){
+busqCxp=q;const pp=pendCxP();
+refreshTabla("tbody-cxp",rowsCxP(pp));refreshTabla("stats-cxp",statsCxP(pp));
 }
 });
 const v=inp.value;inp.value="";inp.value=v;
@@ -457,7 +463,7 @@ buildHdr()+(ST.menu?buildMenu():"")+
 (ST.tab==="Reportes"?buildRep():"")+
 (ST.tab==="Actividad"?buildLog():"")+
 `</div>`;
-if(["Inventario","Clientes","Proveedores","Ventas","Compras"].includes(ST.tab))attachBusqueda();
+if(["Inventario","Clientes","Proveedores","Ventas","Compras","CxC","CxP"].includes(ST.tab))attachBusqueda();
 if(ST.tab==="Reportes"&&ST.sub==="inv"){renderCatTable();}
 }
 
@@ -484,7 +490,7 @@ return`<div class="menu-overlay" onclick="ST.menu=false;R()"><div class="menu-pa
 <div class="menu-grid">${btns}</div>
 </div></div>`;
 }
-function goTab(t){ST.tab=t;ST.menu=false;ST.cxcIdx=-1;ST.cxpIdx=-1;busqInv="";busqCli="";busqProv="";busqVen="";busqCom="";if(t==="Actividad")cargarLogs().then(R);else R();}
+function goTab(t){ST.tab=t;ST.menu=false;ST.cxcIdx=-1;ST.cxpIdx=-1;busqInv="";busqCli="";busqProv="";busqVen="";busqCom="";busqCxc="";busqCxp="";if(t==="Actividad")cargarLogs().then(R);else R();}
 
 function checkAlarmas(){
 const hoy=new Date();hoy.setHours(0,0,0,0);const alertas=[];
@@ -991,33 +997,56 @@ await logAct("ANULAR COMPRA",`${c.proveedor} · ${fmt(c.total)}`);R();
 /* ════════════════════════
    CxC / CxP
    ════════════════════════ */
-function buildCxC(){
-const pend=DB.ventas.map((v,i)=>({...v,_i:i})).filter(v=>v.estado==="pendiente");
-const tot=pend.reduce((a,v)=>a+v.saldo,0);const panel=ST.cxcIdx>=0?buildPanel(ST.cxcIdx,"cobrar"):"";
-const rows=pend.map(v=>`<tr>
+const nz=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+function pendCxC(){
+const ruc={};DB.clientes.forEach(c=>{ruc[c.nombre]=c.ruc||"";});
+const q=nz(busqCxc).trim();
+return DB.ventas.map((v,i)=>({...v,_i:i})).filter(v=>v.estado==="pendiente"&&(!q||nz(v.cliente).includes(q)||nz(ruc[v.cliente]).includes(q)));
+}
+function pendCxP(){
+const ruc={};DB.proveedores.forEach(p=>{ruc[p.nombre]=p.ruc||"";});
+const q=nz(busqCxp).trim();
+return DB.compras.map((c,i)=>({...c,_i:i})).filter(c=>c.estado==="pendiente"&&(!q||nz(c.proveedor).includes(q)||nz(ruc[c.proveedor]).includes(q)));
+}
+function statsCxC(pend){return`${sc("Total Pendiente",fmt(pend.reduce((a,v)=>a+v.saldo,0)),C.yel)}${sc("Facturas",pend.length,C.acc)}`;}
+function statsCxP(pend){return`${sc("Total Pendiente",fmt(pend.reduce((a,c)=>a+c.saldo,0)),C.red)}${sc("Facturas",pend.length,C.acc)}`;}
+function rowsCxC(pend){
+return pend.map(v=>`<tr>
 <td style="color:${C.muted};font-size:11px">#${v.id.slice(-6).toUpperCase()}</td><td>${v.fecha}</td><td>${h(v.cliente)}</td>
 <td>${fmt(v.total)}</td><td style="color:${C.green};font-weight:600">${fmt(v.total-v.saldo)}</td>
 <td style="color:${C.yel};font-weight:700">${fmt(v.saldo)}</td><td>${v.vence||"-"}</td>
 <td><button onclick="ST.cxcIdx=${v._i};PM.monto=${v.saldo};PM.forma='transferencia';R()" style="background:${C.acc};color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;font-weight:600">💳 Gestionar</button></td>
-</tr>`).join("");
-return`<div class="h2">💰 Cuentas por Cobrar</div>
-<div class="grid2" style="margin-bottom:14px">${sc("Total Pendiente",fmt(tot),C.yel)}${sc("Facturas",pend.length,C.acc)}</div>
-${panel}<div class="card"><div class="ov"><table><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Pagado</th><th>Saldo</th><th>Vence</th><th></th></tr></thead>
-<tbody>${rows||`<tr><td colspan="8" class="empty">✅ Sin pendientes</td></tr>`}</tbody></table></div></div>`;
+</tr>`).join("")||`<tr><td colspan="8" class="empty">${busqCxc?"Sin resultados":"✅ Sin pendientes"}</td></tr>`;
 }
-function buildCxP(){
-const pend=DB.compras.map((c,i)=>({...c,_i:i})).filter(c=>c.estado==="pendiente");
-const tot=pend.reduce((a,c)=>a+c.saldo,0);const panel=ST.cxpIdx>=0?buildPanel(ST.cxpIdx,"pagar"):"";
-const rows=pend.map(c=>`<tr>
+function rowsCxP(pend){
+return pend.map(c=>`<tr>
 <td style="color:${C.muted};font-size:11px">#${c.id.slice(-6).toUpperCase()}</td><td>${c.fecha}</td><td>${h(c.proveedor)}</td>
 <td>${fmt(c.total)}</td><td style="color:${C.green};font-weight:600">${fmt(c.total-c.saldo)}</td>
 <td style="color:${C.red};font-weight:700">${fmt(c.saldo)}</td><td>${c.vence||"-"}</td>
 <td><button onclick="ST.cxpIdx=${c._i};PM.monto=${c.saldo};PM.forma='transferencia';R()" style="background:${C.acc};color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;font-weight:600">💳 Gestionar</button></td>
-</tr>`).join("");
+</tr>`).join("")||`<tr><td colspan="8" class="empty">${busqCxp?"Sin resultados":"✅ Sin pendientes"}</td></tr>`;
+}
+function buildCxC(){
+const pend=pendCxC();const panel=ST.cxcIdx>=0?buildPanel(ST.cxcIdx,"cobrar"):"";
+return`<div class="h2">💰 Cuentas por Cobrar</div>
+<div class="grid2" id="stats-cxc" style="margin-bottom:14px">${statsCxC(pend)}</div>
+${panel}<div class="card" style="margin-bottom:10px"><div class="sbx">
+<input id="inp-busq" placeholder="🔍 Cliente o cédula/RUC..." value="${h(busqCxc)}" style="width:280px">
+${busqCxc?`<button onclick="busqCxc='';R()" style="background:${C.muted};color:#fff;border:none;border-radius:6px;padding:7px 10px;cursor:pointer">✕</button>`:""}
+</div></div>
+<div class="card"><div class="ov"><table><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Pagado</th><th>Saldo</th><th>Vence</th><th></th></tr></thead>
+<tbody id="tbody-cxc">${rowsCxC(pend)}</tbody></table></div></div>`;
+}
+function buildCxP(){
+const pend=pendCxP();const panel=ST.cxpIdx>=0?buildPanel(ST.cxpIdx,"pagar"):"";
 return`<div class="h2">💳 Cuentas por Pagar</div>
-<div class="grid2" style="margin-bottom:14px">${sc("Total Pendiente",fmt(tot),C.red)}${sc("Facturas",pend.length,C.acc)}</div>
-${panel}<div class="card"><div class="ov"><table><thead><tr><th>#</th><th>Fecha</th><th>Proveedor</th><th>Total</th><th>Pagado</th><th>Saldo</th><th>Vence</th><th></th></tr></thead>
-<tbody>${rows||`<tr><td colspan="8" class="empty">✅ Sin pendientes</td></tr>`}</tbody></table></div></div>`;
+<div class="grid2" id="stats-cxp" style="margin-bottom:14px">${statsCxP(pend)}</div>
+${panel}<div class="card" style="margin-bottom:10px"><div class="sbx">
+<input id="inp-busq" placeholder="🔍 Proveedor o RUC..." value="${h(busqCxp)}" style="width:280px">
+${busqCxp?`<button onclick="busqCxp='';R()" style="background:${C.muted};color:#fff;border:none;border-radius:6px;padding:7px 10px;cursor:pointer">✕</button>`:""}
+</div></div>
+<div class="card"><div class="ov"><table><thead><tr><th>#</th><th>Fecha</th><th>Proveedor</th><th>Total</th><th>Pagado</th><th>Saldo</th><th>Vence</th><th></th></tr></thead>
+<tbody id="tbody-cxp">${rowsCxP(pend)}</tbody></table></div></div>`;
 }
 function buildPanel(idx,tipo){
 const item=tipo==="cobrar"?DB.ventas[idx]:DB.compras[idx];if(!item)return"";
