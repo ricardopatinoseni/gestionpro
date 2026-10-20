@@ -133,13 +133,13 @@ const h=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g
 const sc=(l,v,c)=>`<div class="stat-card" style="border-left-color:${c}"><div class="stat-lbl">${l}</div><div class="stat-val" style="color:${c}">${v}</div></div>`;
 const bx=(l,c,fn,ex="")=>`<button onclick="${fn}" style="background:${c};color:#fff;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:13px;font-weight:600;${ex}">${l}</button>`;
 const bdg=(t,c)=>`<span class="badge" style="background:${c}22;color:${c}">${h(String(t))}</span>`;
-const estColor=e=>e==="pagado"?C.green:e==="anulado"?C.muted:C.yel;
-const puedeModificar=x=>x.estado==="pendiente";
+const estColor=e=>e==="pagado"?C.green:e==="anulado"?C.muted:(e==="devuelta"||e==="devolución")?C.blue:C.yel;
+const puedeModificar=x=>x.estado==="pendiente"&&!(x.devuelto>0);
 function defDesde(){const d=new Date();d.setDate(1);return d.toISOString().split("T")[0];}
 
 let CU=null;
 let ST={tab:"Dashboard",menu:false,sub:"dv",rD:defDesde(),rH:tod(),cxcIdx:-1,cxpIdx:-1,roLinea:""};
-let DB={productos:[],clientes:[],proveedores:[],ventas:[],compras:[]};
+let DB={productos:[],clientes:[],proveedores:[],ventas:[],compras:[],devoluciones:[],creditos:[]};
 let VF={fecha:tod(),cliente:"",clienteIdx:-1,fp:"contado",vence:"",lns:[{id:uid(),pid:"",desc:"",qty:1,pu:0}]};
 let CF={fecha:tod(),proveedor:"",proveedorIdx:-1,fp:"contado",vence:"",lns:[{id:uid(),pid:"",desc:"",qty:1,costo:0}]};
 let IF={nombre:"",sku:"",categoria:"",unidad:"unidad",precio:0,costo:0,stock:0,stockMin:5,imagen:""};
@@ -148,6 +148,7 @@ let EF={nombre:"",ruc:"",email:"",telefono:"",direccion:"",credito:0,contacto:""
 let EEd=null;
 let VV="lista",VD=null,CV="lista",CD=null,RCS="";
 let VEd=null,CEd=null;
+let DV=null;
 let PM={monto:0,forma:"transferencia"};
 let LOGS=[];
 let busqInv="",busqCli="",busqProv="",busqVen="",busqCom="";let verAgotados=false;let busqCxc="",busqCxp="";
@@ -163,8 +164,8 @@ try{await db.collection("logs").add({usuario:CU?.email||"?",accion,detalle,fecha
 catch(e){}
 }
 async function cargarTodo(){
-const [productos,clientes,proveedores,ventas,compras]=await Promise.all([fsGetAll("productos"),fsGetAll("clientes"),fsGetAll("proveedores"),fsGetAll("ventas"),fsGetAll("compras")]);
-DB={productos,clientes,proveedores,ventas,compras};
+const [productos,clientes,proveedores,ventas,compras,devoluciones,creditos]=await Promise.all([fsGetAll("productos"),fsGetAll("clientes"),fsGetAll("proveedores"),fsGetAll("ventas"),fsGetAll("compras"),fsGetAll("devoluciones").catch(()=>[]),fsGetAll("creditos").catch(()=>[])]);
+DB={productos,clientes,proveedores,ventas,compras,devoluciones,creditos};
 }
 async function cargarLogs(){
 try{const snap=await db.collection("logs").orderBy("ts","desc").limit(100).get();LOGS=snap.docs.map(d=>({id:d.id,...d.data()}));}catch(e){LOGS=[];}
@@ -207,7 +208,7 @@ const r=new FileReader();
 r.onload=async ev=>{
 try{
 const bk=JSON.parse(ev.target.result);let total=0;
-for(const col of["productos","clientes","proveedores","ventas","compras"]){
+for(const col of["productos","clientes","proveedores","ventas","compras","devoluciones","creditos"]){
 if(bk[col]&&Array.isArray(bk[col])){for(const item of bk[col]){if(item.id){await fsSet(col,item.id,item);total++;}}}}
 await cargarTodo();await logAct("IMPORTAR",`${total} registros`);alert(`✅ ${total} registros importados.`);R();
 }catch(e){alert("❌ Error: "+e.message);}
@@ -421,7 +422,7 @@ return lista.map(e=>{
 const i=DB[tipo].indexOf(e);
 const fds=esC&&e.fechas?.filter(f=>f.tipo&&f.fecha).map(f=>bdg(`${f.tipo}: ${f.fecha}`,C.blue)).join(" ")||"";
 const si=e.saldoInicial>0?bdg(`$${e.saldoInicial}`,C.red):"";
-return`<tr><td><b>${h(e.nombre)}</b></td><td>${h(e.ruc)}</td><td>${h(e.email)}</td><td>${h(e.telefono)}</td>
+return`<tr><td><b>${h(e.nombre)}</b>${credBadge(tipo,e)}</td><td>${h(e.ruc)}</td><td>${h(e.email)}</td><td>${h(e.telefono)}</td>
 <td>${esC?`${e.credito} días`:h(e.contacto)}</td>
 ${esC?`<td>${si||"-"}</td><td>${fds||"-"}</td>`:`<td>${si||"-"}</td>`}
 <td>${bx("🖨",C.muted,`printFicha('${tipo}',${i})`,`margin-right:4px;padding:4px 8px`)}${bx("✏️",C.acc,`entEd('${tipo}',${i})`,`margin-right:4px;padding:4px 8px`)}${bx("🗑",C.red,`entDel('${tipo}',${i})`,`padding:4px 8px`)}</td></tr>`;
@@ -519,7 +520,7 @@ return`<div class="menu-overlay" onclick="ST.menu=false;R()"><div class="menu-pa
 <div class="menu-grid">${btns}</div>
 </div></div>`;
 }
-function goTab(t){ST.tab=t;ST.menu=false;ST.cxcIdx=-1;ST.cxpIdx=-1;busqInv="";busqCli="";busqProv="";busqVen="";busqCom="";busqCxc="";busqCxp="";if(t==="Actividad")cargarLogs().then(R);else R();}
+function goTab(t){ST.tab=t;ST.menu=false;DV=null;ST.cxcIdx=-1;ST.cxpIdx=-1;busqInv="";busqCli="";busqProv="";busqVen="";busqCom="";busqCxc="";busqCxp="";if(t==="Actividad")cargarLogs().then(R);else R();}
 
 function checkAlarmas(){
 const hoy=new Date();hoy.setHours(0,0,0,0);const alertas=[];
@@ -546,13 +547,13 @@ const items=alertas.map(a=>`<div style="font-size:13px;margin-bottom:4px">🔔 <
 return`<div class="alert-banner"><div style="font-weight:700;color:${C.yel};margin-bottom:6px">⚠ Fechas Importantes</div>${items}</div>`;
 }
 function buildDash(){
-const tv=DB.ventas.filter(v=>v.estado!=="anulado"&&!v.esSaldoInicial).reduce((a,v)=>a+v.total,0);const tc=DB.compras.filter(c=>c.estado!=="anulado"&&!c.esSaldoInicial).reduce((a,c)=>a+c.total,0);
+const tv=DB.ventas.filter(v=>v.estado!=="anulado"&&!v.esSaldoInicial).reduce((a,v)=>a+v.total,0)-sumDev("venta");const tc=DB.compras.filter(c=>c.estado!=="anulado"&&!c.esSaldoInicial).reduce((a,c)=>a+c.total,0)-sumDev("compra");
 const cxcP=DB.ventas.filter(v=>v.estado==="pendiente");const cxpP=DB.compras.filter(c=>c.estado==="pendiente");
 const sb=[];
 const activos=DB.productos.filter(p=>p.stock>0);const tu=activos.reduce((a,p)=>a+p.stock,0);const vs=activos.reduce((a,p)=>a+(p.stock*p.costo),0);
 const rv=[...DB.ventas].reverse().slice(0,5).map(v=>`<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px"><span style="color:${C.muted}">${v.fecha} · ${h(v.cliente)}</span><b style="color:${C.green}">${fmt(v.total)}</b></div>`).join("")||`<div style="color:${C.muted}">Sin ventas</div>`;
-const rc=cxcP.map(v=>`<tr><td>${h(v.cliente)}</td><td>${fmt(v.total)}</td><td style="color:${C.yel};font-weight:700">${fmt(v.saldo)}</td><td>${v.vence||"-"}</td></tr>`).join("");
-const rp=cxpP.map(c=>`<tr><td>${h(c.proveedor)}</td><td>${fmt(c.total)}</td><td style="color:${C.red};font-weight:700">${fmt(c.saldo)}</td><td>${c.vence||"-"}</td></tr>`).join("");
+const rc=cxcP.map(v=>`<tr><td>${h(v.cliente)}</td><td>${fmt(v.total-(v.devuelto||0))}</td><td style="color:${C.yel};font-weight:700">${fmt(v.saldo)}</td><td>${v.vence||"-"}</td></tr>`).join("");
+const rp=cxpP.map(c=>`<tr><td>${h(c.proveedor)}</td><td>${fmt(c.total-(c.devuelto||0))}</td><td style="color:${C.red};font-weight:700">${fmt(c.saldo)}</td><td>${c.vence||"-"}</td></tr>`).join("");
 return`
 <div class="grid2" style="margin-bottom:14px">
 ${sc("Ventas Totales",fmt(tv),C.green)}${sc("Compras Totales",fmt(tc),C.acc)}
@@ -729,7 +730,7 @@ catch(e){alert("Error: "+e.message);}
    VENTAS
    ════════════════════════════════════════ */
 function buildVentas(){
-if(VV==="nueva"||VV==="editar")return buildVN();if(VD!==null)return buildVDet(VD);
+if(DV&&DV.tipo==="venta")return buildDevForm();if(VV==="nueva"||VV==="editar")return buildVN();if(VD!==null)return buildVDet(VD);
 const q=busqVen.toLowerCase();
 const filtered=[...DB.ventas].reverse().filter(v=>
 !q||v.cliente?.toLowerCase().includes(q)||
@@ -813,17 +814,17 @@ ${bx("+ Línea",C.acc2,"vAddL()",`margin-top:4px`)}
 function buildVDet(i){
 const v=DB.ventas[i];
 const rows=(v.lineas||[]).map(l=>`<tr><td>${h(l.desc)}</td><td>${l.qty}</td><td>${fmt(l.pu)}</td><td>${fmt(l.qty*l.pu)}</td></tr>`).join("");
-return`<div style="display:flex;gap:8px;margin-bottom:10px">${bx("← Volver",C.muted,"VD=null;R()")}${bx("🖨 Imprimir / PDF",C.acc,`printVenta(${i})`)}</div>
+return`<div style="display:flex;gap:8px;margin-bottom:10px">${bx("← Volver",C.muted,"VD=null;R()")}${bx("🖨 Imprimir / PDF",C.acc,`printVenta(${i})`)}${(v.estado!=="anulado"&&v.estado!=="devuelta"&&!v.esSaldoInicial)?bx("↩ Devolución",C.yel,`devNueva('venta',${i})`):""}</div>
 <div class="card"><div class="h2">Factura #${v.id.slice(-6).toUpperCase()}</div>
 <div class="grid2" style="margin-bottom:14px">${[["Fecha",v.fecha],["Cliente",v.cliente],["Forma Pago",v.fp],["Estado",v.estado],["Usuario",v.usuario||"-"]].map(([l,val])=>`<div><span style="color:${C.muted};font-size:12px">${l}: </span><b>${h(val)}</b></div>`).join("")}</div>
 <div class="ov"><table><thead><tr><th>Descripción</th><th>Cant.</th><th>P.Unit.</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table></div>
-<div style="text-align:right;margin-top:8px"><div style="font-size:15px;font-weight:700">Total: <span style="color:${C.green}">${fmt(v.total)}</span></div>${v.saldo>0?`<div style="color:${C.red}">Saldo: ${fmt(v.saldo)}</div>`:""}</div>
-</div>`;
+<div style="text-align:right;margin-top:8px"><div style="font-size:15px;font-weight:700">Total: <span style="color:${C.green}">${fmt(v.total)}</span></div>${v.devuelto>0?`<div style="color:${C.yel}">Devuelto: ${fmt(v.devuelto)}</div>`:""}${v.saldo>0?`<div style="color:${C.red}">Saldo: ${fmt(v.saldo)}</div>`:""}</div>
+</div>${devBloque(v,true)}`;
 }
 function vNueva(){VV="nueva";VEd=null;VF={fecha:tod(),cliente:"",clienteIdx:-1,fp:"contado",vence:"",lns:[{id:uid(),pid:"",desc:"",qty:1,pu:0}]};R();}
 function vEditar(i){
 const v=DB.ventas[i];
-if(!puedeModificar(v))return alert("No se puede editar: esta factura ya está pagada o anulada.");
+if(!puedeModificar(v))return alert("No se puede editar: esta factura ya está pagada, anulada o tiene devoluciones.");
 VEd=i;
 const ci=DB.clientes.findIndex(c=>c.nombre===v.cliente);
 VF={fecha:v.fecha,cliente:ci>=0?String(ci):(v.cliente==="Consumidor Final"?"cf":""),clienteIdx:ci,fp:v.fp,vence:v.vence||"",lns:(v.lineas||[]).map(l=>({...l,id:l.id||uid()}))};
@@ -865,7 +866,7 @@ await logAct("EDITAR VENTA",`${cli} · ${fmt(total)}`);VV="lista";VEd=null;R();
 }
 async function vAnular(i){
 const v=DB.ventas[i];
-if(!puedeModificar(v))return alert("No se puede anular: esta factura ya está pagada o ya está anulada.");
+if(!puedeModificar(v))return alert("No se puede anular: esta factura ya está pagada, anulada o tiene devoluciones.");
 if(!confirm("¿Anular esta factura de venta? Se repondrá el stock de los productos involucrados."))return;
 try{
 for(const l of (v.lineas||[])){if(l.pid!==""){const idx=+l.pid;if(DB.productos[idx]){DB.productos[idx].stock+=l.qty;await fsSet("productos",DB.productos[idx].id,DB.productos[idx]);}}}
@@ -879,7 +880,7 @@ await logAct("ANULAR VENTA",`${v.cliente} · ${fmt(v.total)}`);R();
    COMPRAS
    ════════════════════════════════════════ */
 function buildCompras(){
-if(CV==="nueva"||CV==="editar")return buildCN();if(CD!==null)return buildCDet(CD);
+if(DV&&DV.tipo==="compra")return buildDevForm();if(CV==="nueva"||CV==="editar")return buildCN();if(CD!==null)return buildCDet(CD);
 const q=busqCom.toLowerCase();
 const filtered=[...DB.compras].reverse().filter(c=>
 !q||c.proveedor?.toLowerCase().includes(q)||
@@ -961,17 +962,17 @@ ${bx("+ Línea",C.acc2,"cAddL()",`margin-top:4px`)}
 function buildCDet(i){
 const c=DB.compras[i];
 const rows=(c.lineas||[]).map(l=>`<tr><td>${h(l.desc)}</td><td>${l.qty}</td><td>${fmt(l.costo)}</td><td>${fmt(l.qty*l.costo)}</td></tr>`).join("");
-return`<div style="display:flex;gap:8px;margin-bottom:10px">${bx("← Volver",C.muted,"CD=null;R()")}${bx("🖨 Imprimir / PDF",C.acc,`printCompra(${i})`)}</div>
+return`<div style="display:flex;gap:8px;margin-bottom:10px">${bx("← Volver",C.muted,"CD=null;R()")}${bx("🖨 Imprimir / PDF",C.acc,`printCompra(${i})`)}${(c.estado!=="anulado"&&c.estado!=="devuelta"&&!c.esSaldoInicial)?bx("↩ Devolución",C.yel,`devNueva('compra',${i})`):""}</div>
 <div class="card"><div class="h2">Compra #${c.id.slice(-6).toUpperCase()}</div>
 <div class="grid2" style="margin-bottom:14px">${[["Fecha",c.fecha],["Proveedor",c.proveedor],["Forma Pago",c.fp],["Estado",c.estado],["Usuario",c.usuario||"-"]].map(([l,val])=>`<div><span style="color:${C.muted};font-size:12px">${l}: </span><b>${h(val)}</b></div>`).join("")}</div>
 <div class="ov"><table><thead><tr><th>Descripción</th><th>Cant.</th><th>Costo</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table></div>
-<div style="text-align:right;margin-top:8px"><div style="font-size:15px;font-weight:700">Total: <span style="color:${C.acc}">${fmt(c.total)}</span></div>${c.saldo>0?`<div style="color:${C.red}">Saldo: ${fmt(c.saldo)}</div>`:""}</div>
-</div>`;
+<div style="text-align:right;margin-top:8px"><div style="font-size:15px;font-weight:700">Total: <span style="color:${C.acc}">${fmt(c.total)}</span></div>${c.devuelto>0?`<div style="color:${C.yel}">Devuelto: ${fmt(c.devuelto)}</div>`:""}${c.saldo>0?`<div style="color:${C.red}">Saldo: ${fmt(c.saldo)}</div>`:""}</div>
+</div>${devBloque(c,false)}`;
 }
 function cNueva(){CV="nueva";CEd=null;CF={fecha:tod(),proveedor:"",proveedorIdx:-1,fp:"contado",vence:"",lns:[{id:uid(),pid:"",desc:"",qty:1,costo:0}]};R();}
 function cEditar(i){
 const c=DB.compras[i];
-if(!puedeModificar(c))return alert("No se puede editar: esta compra ya está pagada o anulada.");
+if(!puedeModificar(c))return alert("No se puede editar: esta compra ya está pagada, anulada o tiene devoluciones.");
 CEd=i;
 const pi=DB.proveedores.findIndex(p=>p.nombre===c.proveedor);
 CF={fecha:c.fecha,proveedor:pi>=0?String(pi):"",proveedorIdx:pi,fp:c.fp,vence:c.vence||"",lns:(c.lineas||[]).map(l=>({...l,id:l.id||uid()}))};
@@ -1013,7 +1014,7 @@ await logAct("EDITAR COMPRA",`${prov} · ${fmt(total)}`);CV="lista";CEd=null;R()
 }
 async function cAnular(i){
 const c=DB.compras[i];
-if(!puedeModificar(c))return alert("No se puede anular: esta compra ya está pagada o ya está anulada.");
+if(!puedeModificar(c))return alert("No se puede anular: esta compra ya está pagada, anulada o tiene devoluciones.");
 if(!confirm("¿Anular esta compra? Se revertirá el stock de los productos involucrados."))return;
 try{
 for(const l of (c.lineas||[])){if(l.pid!==""){const idx=+l.pid;if(DB.productos[idx]){DB.productos[idx].stock-=l.qty;await fsSet("productos",DB.productos[idx].id,DB.productos[idx]);}}}
@@ -1042,7 +1043,7 @@ function statsCxP(pend){return`${sc("Total Pendiente",fmt(pend.reduce((a,c)=>a+c
 function rowsCxC(pend){
 return pend.map(v=>`<tr>
 <td style="color:${C.muted};font-size:11px">#${v.id.slice(-6).toUpperCase()}</td><td>${v.fecha}</td><td>${h(v.cliente)}</td>
-<td>${fmt(v.total)}</td><td style="color:${C.green};font-weight:600">${fmt(v.total-v.saldo)}</td>
+<td>${fmt(v.total-(v.devuelto||0))}</td><td style="color:${C.green};font-weight:600">${fmt(v.total-(v.devuelto||0)-v.saldo)}</td>
 <td style="color:${C.yel};font-weight:700">${fmt(v.saldo)}</td><td>${v.vence||"-"}</td>
 <td><button onclick="ST.cxcIdx=${v._i};PM.monto=${v.saldo};PM.forma='transferencia';R()" style="background:${C.acc};color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;font-weight:600">💳 Gestionar</button></td>
 </tr>`).join("")||`<tr><td colspan="8" class="empty">${busqCxc?"Sin resultados":"✅ Sin pendientes"}</td></tr>`;
@@ -1050,7 +1051,7 @@ return pend.map(v=>`<tr>
 function rowsCxP(pend){
 return pend.map(c=>`<tr>
 <td style="color:${C.muted};font-size:11px">#${c.id.slice(-6).toUpperCase()}</td><td>${c.fecha}</td><td>${h(c.proveedor)}</td>
-<td>${fmt(c.total)}</td><td style="color:${C.green};font-weight:600">${fmt(c.total-c.saldo)}</td>
+<td>${fmt(c.total-(c.devuelto||0))}</td><td style="color:${C.green};font-weight:600">${fmt(c.total-(c.devuelto||0)-c.saldo)}</td>
 <td style="color:${C.red};font-weight:700">${fmt(c.saldo)}</td><td>${c.vence||"-"}</td>
 <td><button onclick="ST.cxpIdx=${c._i};PM.monto=${c.saldo};PM.forma='transferencia';R()" style="background:${C.acc};color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;font-weight:600">💳 Gestionar</button></td>
 </tr>`).join("")||`<tr><td colspan="8" class="empty">${busqCxp?"Sin resultados":"✅ Sin pendientes"}</td></tr>`;
@@ -1080,7 +1081,7 @@ ${busqCxp?`<button onclick="busqCxp='';R()" style="background:${C.muted};color:#
 function buildPanel(idx,tipo){
 const item=tipo==="cobrar"?DB.ventas[idx]:DB.compras[idx];if(!item)return"";
 const col=tipo==="cobrar"?C.green:C.red;const ent=tipo==="cobrar"?item.cliente:item.proveedor;
-const pagado=item.total-item.saldo;const pct=item.total>0?Math.min(100,(pagado/item.total)*100).toFixed(0):0;
+const neto=item.total-(item.devuelto||0);const pagado=neto-item.saldo;const pct=neto>0?Math.min(100,(pagado/neto)*100).toFixed(0):0;
 const pagos=item.pagos||[];
 const hist=pagos.length?`<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:${C.muted};margin-bottom:6px">Historial:</div>
 <div class="ov"><table><thead><tr><th>Fecha</th><th>Forma</th><th>Monto</th><th>Usuario</th></tr></thead>
@@ -1090,7 +1091,7 @@ const accion=tipo==="cobrar"?"pagarCxC()":"pagarCxP()";
 return`<div class="card" style="border-left:4px solid ${col};margin-bottom:14px">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
 <div><b style="font-size:15px">${h(ent)} — #${item.id.slice(-6).toUpperCase()}</b><br>
-<span style="font-size:12px;color:${C.muted}">Total: ${fmt(item.total)} · Vence: ${item.vence||"-"}</span></div>
+<span style="font-size:12px;color:${C.muted}">Total: ${fmt(neto)}${item.devuelto>0?` (devuelto ${fmt(item.devuelto)})`:""} · Vence: ${item.vence||"-"}</span></div>
 <button onclick="${cerrar}" style="background:${C.muted};color:#fff;border:none;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px;font-weight:600">✕ Cerrar</button>
 </div>
 <div style="margin-bottom:12px">
@@ -1101,6 +1102,7 @@ return`<div class="card" style="border-left:4px solid ${col};margin-bottom:14px"
 <div style="font-size:11px;color:${C.muted};text-align:right;margin-top:2px">${pct}% pagado</div>
 </div>
 ${hist}
+${credPanel(tipo,item)}
 ${item.saldo>0?`<div style="border-top:1px solid ${C.brd};padding-top:12px">
 <div style="font-size:12px;font-weight:600;color:${C.muted};margin-bottom:8px">Registrar ${tipo==="cobrar"?"cobro":"pago"}:</div>
 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
@@ -1133,7 +1135,7 @@ catch(e){alert("Error: "+e.message);}
 /* ════════════════════════
    REPORTES
    ════════════════════════ */
-const SUBS=[{k:"dv",l:"📋 Diario Ventas"},{k:"vc",l:"👥 Ventas x Cliente"},{k:"vp",l:"📦 Ventas x Producto"},{k:"rpc",l:"🔗 Prod-Cliente"},{k:"dc",l:"📋 Diario Compras"},{k:"cp",l:"🏭 Compras x Prov."},{k:"er",l:"📈 Estado Result."},{k:"fc",l:"💵 Flujo Caja"},{k:"ca",l:"📅 Cartera"},{k:"ro",l:"🔄 Rotación"},{k:"fp",l:"💳 Formas Pago"},{k:"rc",l:"👤 Rep. Cliente"},{k:"inv",l:"📦 Inventario"}];
+const SUBS=[{k:"dv",l:"📋 Diario Ventas"},{k:"vc",l:"👥 Ventas x Cliente"},{k:"vp",l:"📦 Ventas x Producto"},{k:"rpc",l:"🔗 Prod-Cliente"},{k:"dc",l:"📋 Diario Compras"},{k:"cp",l:"🏭 Compras x Prov."},{k:"er",l:"📈 Estado Result."},{k:"fc",l:"💵 Flujo Caja"},{k:"ca",l:"📅 Cartera"},{k:"ro",l:"🔄 Rotación"},{k:"fp",l:"💳 Formas Pago"},{k:"rc",l:"👤 Rep. Cliente"},{k:"inv",l:"📦 Inventario"},{k:"dev",l:"↩ Devoluciones"}];
 function buildRep(){
 const tabs=SUBS.map(s=>`<button onclick="ST.sub='${s.k}';R()" style="background:${ST.sub===s.k?"#6366f1":"#1e293b"};color:${ST.sub===s.k?"#fff":"#94a3b8"};border:1px solid #334155;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600">${s.l}</button>`).join("");
 const filtro=`<div class="card" style="margin-bottom:14px"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
@@ -1144,28 +1146,28 @@ const filtro=`<div class="card" style="margin-bottom:14px"><div style="display:f
 <button onclick="ST.rD='2000-01-01';ST.rH='${tod()}';R()" style="background:#94a3b8;color:#fff;border:none;border-radius:6px;padding:7px 12px;cursor:pointer;font-size:12px;font-weight:600">Todo</button>
 ${bx("🖨 Imprimir / PDF",C.acc,"printReporte()","margin-left:auto")}
 </div></div>`;
-const V=DB.ventas.filter(v=>v.fecha>=ST.rD&&v.fecha<=ST.rH&&v.estado!=="anulado"&&!v.esSaldoInicial);
-const K=DB.compras.filter(c=>c.fecha>=ST.rD&&c.fecha<=ST.rH&&c.estado!=="anulado"&&!c.esSaldoInicial);
+const V=DB.ventas.filter(v=>v.fecha>=ST.rD&&v.fecha<=ST.rH&&v.estado!=="anulado"&&!v.esSaldoInicial).concat(devPseudo("venta").filter(d=>d.fecha>=ST.rD&&d.fecha<=ST.rH));
+const K=DB.compras.filter(c=>c.fecha>=ST.rD&&c.fecha<=ST.rH&&c.estado!=="anulado"&&!c.esSaldoInicial).concat(devPseudo("compra").filter(d=>d.fecha>=ST.rD&&d.fecha<=ST.rH));
 let body="";
 if(ST.sub==="dv")body=rDV(V);else if(ST.sub==="vc")body=rVC(V);else if(ST.sub==="vp")body=rVP(V);
 else if(ST.sub==="rpc")body=rRPC(V);else if(ST.sub==="dc")body=rDC(K);else if(ST.sub==="cp")body=rCP(K);
 else if(ST.sub==="er")body=rER(V,K);else if(ST.sub==="fc")body=rFC(V,K);else if(ST.sub==="ca")body=rCA();
 else if(ST.sub==="ro")body=rRO(V);else if(ST.sub==="fp")body=rFP(V);else if(ST.sub==="rc")body=rRC(V);
-else if(ST.sub==="inv")body=rINV();
+else if(ST.sub==="inv")body=rINV();else if(ST.sub==="dev")body=rDEV();
 return`<div class="sub-tabs">${tabs}</div>${filtro}<div id="rep-body">${body}</div>`;
 }
-function rDV(V){const pf={};V.forEach(v=>{if(!pf[v.fecha])pf[v.fecha]={vs:[],t:0};pf[v.fecha].vs.push(v);pf[v.fecha].t+=v.total;});const f=Object.keys(pf).sort().reverse();return`<div class="h2">📋 Diario de Ventas</div><div class="grid2" style="margin-bottom:14px">${sc("Facturas",V.length,C.acc)}${sc("Total",fmt(V.reduce((a,v)=>a+v.total,0)),C.green)}</div>${f.map(d=>`<div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><b style="color:${C.acc2}">${d}</b><b style="color:${C.green}">${fmt(pf[d].t)}</b></div><div class="ov"><table><thead><tr><th>#</th><th>Cliente</th><th>Forma</th><th>Total</th><th>Estado</th><th>Usuario</th></tr></thead><tbody>${pf[d].vs.map(v=>`<tr><td style="font-size:11px;color:${C.muted}">#${v.id.slice(-6).toUpperCase()}</td><td>${h(v.cliente)}</td><td>${v.fp}</td><td style="color:${C.green};font-weight:600">${fmt(v.total)}</td><td>${bdg(v.estado,estColor(v.estado))}</td><td style="font-size:11px;color:${C.muted}">${v.usuario||"-"}</td></tr>`).join("")}</tbody></table></div></div>`).join("")||`<div class="card empty">Sin ventas en el rango</div>`}`;}
-function rVC(V){const m={};V.forEach(v=>{if(!m[v.cliente])m[v.cliente]={n:0,t:0};m[v.cliente].n++;m[v.cliente].t+=v.total;});const lista=Object.entries(m).sort((a,b)=>b[1].t-a[1].t);const gt=V.reduce((a,v)=>a+v.total,0);const rows=lista.map(([c,d])=>{const p=gt>0?((d.t/gt)*100).toFixed(1):0;return`<tr><td><b>${h(c)}</b></td><td>${d.n}</td><td style="color:${C.green};font-weight:700">${fmt(d.t)}</td><td><div style="display:flex;align-items:center;gap:6px"><div style="background:#334155;border-radius:4px;height:6px;width:80px"><div style="width:${p}%;background:${C.green};height:6px;border-radius:4px"></div></div><span style="font-size:11px">${p}%</span></div></td></tr>`;}).join("");return`<div class="h2">👥 Ventas por Cliente</div><div class="card"><div class="ov"><table><thead><tr><th>Cliente</th><th>Fact.</th><th>Total</th><th>%</th></tr></thead><tbody>${rows||`<tr><td colspan="4" class="empty">Sin datos</td></tr>`}${lista.length?`<tr style="background:${C.bg}"><td style="font-weight:700">TOTAL</td><td>${V.length}</td><td style="color:${C.green};font-weight:700">${fmt(gt)}</td><td>100%</td></tr>`:""}</tbody></table></div></div>`;}
-function rVP(V){const m={};V.forEach(v=>(v.lineas||[]).forEach(l=>{const k=l.desc;const prod=DB.productos.find(p=>p.nombre===k);if(!m[k])m[k]={q:0,t:0,f:0,sku:prod?.sku||"-"};m[k].q+=l.qty;m[k].t+=l.qty*l.pu;m[k].f++;}));const lista=Object.entries(m).sort((a,b)=>b[1].t-a[1].t);const gt=lista.reduce((a,[,d])=>a+d.t,0);const rows=lista.map(([p,d])=>{const pc=gt>0?((d.t/gt)*100).toFixed(1):0;return`<tr><td style="color:${C.muted};font-size:12px">${h(d.sku)}</td><td><b>${h(p)}</b></td><td>${d.q}</td><td>${d.f}</td><td style="color:${C.green};font-weight:700">${fmt(d.t)}</td><td><div style="display:flex;align-items:center;gap:6px"><div style="background:#334155;border-radius:4px;height:6px;width:80px"><div style="width:${pc}%;background:${C.acc};height:6px;border-radius:4px"></div></div><span style="font-size:11px">${pc}%</span></div></td></tr>`;}).join("");return`<div class="h2">📦 Ventas por Producto</div><div class="card"><div class="ov"><table><thead><tr><th>SKU</th><th>Producto</th><th>Uds.</th><th>Veces</th><th>Total</th><th>%</th></tr></thead><tbody>${rows||`<tr><td colspan="6" class="empty">Sin datos</td></tr>`}</tbody></table></div></div>`;}
-function rRPC(V){const m={};V.forEach(v=>(v.lineas||[]).forEach(l=>{const k=l.desc+"|||"+v.cliente;const prod=DB.productos.find(p=>p.nombre===l.desc);if(!m[k])m[k]={p:l.desc,c:v.cliente,q:0,t:0,n:0,sku:prod?.sku||"-"};m[k].q+=l.qty;m[k].t+=l.qty*l.pu;m[k].n++;}));const rows=Object.values(m).sort((a,b)=>b.t-a.t).map(r=>`<tr><td style="color:${C.muted};font-size:12px">${h(r.sku)}</td><td><b>${h(r.p)}</b></td><td>${h(r.c)}</td><td>${r.q}</td><td>${r.n}</td><td style="color:${C.green};font-weight:600">${fmt(r.t)}</td></tr>`).join("");return`<div class="h2">🔗 Relación Producto - Cliente</div><div class="card"><div class="ov"><table><thead><tr><th>SKU</th><th>Producto</th><th>Cliente</th><th>Uds.</th><th>Veces</th><th>Total</th></tr></thead><tbody>${rows||`<tr><td colspan="6" class="empty">Sin datos</td></tr>`}</tbody></table></div></div>`;}
-function rDC(K){const pf={};K.forEach(c=>{if(!pf[c.fecha])pf[c.fecha]={cs:[],t:0};pf[c.fecha].cs.push(c);pf[c.fecha].t+=c.total;});const f=Object.keys(pf).sort().reverse();return`<div class="h2">📋 Diario de Compras</div><div class="grid2" style="margin-bottom:14px">${sc("Órdenes",K.length,C.acc)}${sc("Total",fmt(K.reduce((a,c)=>a+c.total,0)),C.acc)}</div>${f.map(d=>`<div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><b style="color:${C.acc2}">${d}</b><b style="color:${C.acc}">${fmt(pf[d].t)}</b></div><div class="ov"><table><thead><tr><th>#</th><th>Proveedor</th><th>Forma</th><th>Total</th><th>Estado</th><th>Usuario</th></tr></thead><tbody>${pf[d].cs.map(c=>`<tr><td style="font-size:11px;color:${C.muted}">#${c.id.slice(-6).toUpperCase()}</td><td>${h(c.proveedor)}</td><td>${c.fp}</td><td style="color:${C.acc};font-weight:600">${fmt(c.total)}</td><td>${bdg(c.estado,estColor(c.estado))}</td><td style="font-size:11px;color:${C.muted}">${c.usuario||"-"}</td></tr>`).join("")}</tbody></table></div></div>`).join("")||`<div class="card empty">Sin compras en el rango</div>`}`;}
-function rCP(K){const m={};K.forEach(c=>{if(!m[c.proveedor])m[c.proveedor]={n:0,t:0,compras:[]};m[c.proveedor].n++;m[c.proveedor].t+=c.total;m[c.proveedor].compras.push({fecha:c.fecha,total:c.total});});const lista=Object.entries(m).sort((a,b)=>b[1].t-a[1].t);const gt=K.reduce((a,c)=>a+c.total,0);const rows=lista.map(([p,d])=>{const pc=gt>0?((d.t/gt)*100).toFixed(1):0;return`<tr><td><b>${h(p)}</b></td><td>${d.n}</td><td style="color:${C.acc};font-weight:700">${fmt(d.t)}</td><td><div style="display:flex;align-items:center;gap:6px"><div style="background:#334155;border-radius:4px;height:6px;width:80px"><div style="width:${pc}%;background:${C.acc};height:6px;border-radius:4px"></div></div><span style="font-size:11px">${pc}%</span></div></td><td>${d.compras.map(c=>`<div style="font-size:11px;color:${C.muted}">${c.fecha} · ${fmt(c.total)}</div>`).join("")}</td></tr>`;}).join("");return`<div class="h2">🏭 Compras por Proveedor</div><div class="card"><div class="ov"><table><thead><tr><th>Proveedor</th><th>Órd.</th><th>Total</th><th>%</th><th>Fechas</th></tr></thead><tbody>${rows||`<tr><td colspan="5" class="empty">Sin datos</td></tr>`}${lista.length?`<tr style="background:${C.bg}"><td style="font-weight:700">TOTAL</td><td>${K.length}</td><td style="color:${C.acc};font-weight:700">${fmt(gt)}</td><td>100%</td><td></td></tr>`:""}</tbody></table></div></div>`;}
+function rDV(V){const pf={};V.forEach(v=>{if(!pf[v.fecha])pf[v.fecha]={vs:[],t:0};pf[v.fecha].vs.push(v);pf[v.fecha].t+=v.total;});const f=Object.keys(pf).sort().reverse();return`<div class="h2">📋 Diario de Ventas</div><div class="grid2" style="margin-bottom:14px">${sc("Facturas",V.filter(v=>!v.esDevolucion).length,C.acc)}${sc("Total",fmt(V.reduce((a,v)=>a+v.total,0)),C.green)}</div>${f.map(d=>`<div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><b style="color:${C.acc2}">${d}</b><b style="color:${C.green}">${fmt(pf[d].t)}</b></div><div class="ov"><table><thead><tr><th>#</th><th>Cliente</th><th>Forma</th><th>Total</th><th>Estado</th><th>Usuario</th></tr></thead><tbody>${pf[d].vs.map(v=>`<tr><td style="font-size:11px;color:${C.muted}">#${v.id.slice(-6).toUpperCase()}</td><td>${h(v.cliente)}</td><td>${v.fp}</td><td style="color:${C.green};font-weight:600">${fmt(v.total)}</td><td>${bdg(v.estado,estColor(v.estado))}</td><td style="font-size:11px;color:${C.muted}">${v.usuario||"-"}</td></tr>`).join("")}</tbody></table></div></div>`).join("")||`<div class="card empty">Sin ventas en el rango</div>`}`;}
+function rVC(V){const m={};V.forEach(v=>{if(!m[v.cliente])m[v.cliente]={n:0,t:0};if(!v.esDevolucion)m[v.cliente].n++;m[v.cliente].t+=v.total;});const lista=Object.entries(m).sort((a,b)=>b[1].t-a[1].t);const gt=V.reduce((a,v)=>a+v.total,0);const rows=lista.map(([c,d])=>{const p=gt>0?((d.t/gt)*100).toFixed(1):0;return`<tr><td><b>${h(c)}</b></td><td>${d.n}</td><td style="color:${C.green};font-weight:700">${fmt(d.t)}</td><td><div style="display:flex;align-items:center;gap:6px"><div style="background:#334155;border-radius:4px;height:6px;width:80px"><div style="width:${p}%;background:${C.green};height:6px;border-radius:4px"></div></div><span style="font-size:11px">${p}%</span></div></td></tr>`;}).join("");return`<div class="h2">👥 Ventas por Cliente</div><div class="card"><div class="ov"><table><thead><tr><th>Cliente</th><th>Fact.</th><th>Total</th><th>%</th></tr></thead><tbody>${rows||`<tr><td colspan="4" class="empty">Sin datos</td></tr>`}${lista.length?`<tr style="background:${C.bg}"><td style="font-weight:700">TOTAL</td><td>${V.length}</td><td style="color:${C.green};font-weight:700">${fmt(gt)}</td><td>100%</td></tr>`:""}</tbody></table></div></div>`;}
+function rVP(V){const m={};V.forEach(v=>(v.lineas||[]).forEach(l=>{const k=l.desc;const prod=DB.productos.find(p=>p.nombre===k);if(!m[k])m[k]={q:0,t:0,f:0,sku:prod?.sku||"-"};m[k].q+=l.qty;m[k].t+=l.qty*l.pu;if(l.qty>0)m[k].f++;}));const lista=Object.entries(m).sort((a,b)=>b[1].t-a[1].t);const gt=lista.reduce((a,[,d])=>a+d.t,0);const rows=lista.map(([p,d])=>{const pc=gt>0?((d.t/gt)*100).toFixed(1):0;return`<tr><td style="color:${C.muted};font-size:12px">${h(d.sku)}</td><td><b>${h(p)}</b></td><td>${d.q}</td><td>${d.f}</td><td style="color:${C.green};font-weight:700">${fmt(d.t)}</td><td><div style="display:flex;align-items:center;gap:6px"><div style="background:#334155;border-radius:4px;height:6px;width:80px"><div style="width:${pc}%;background:${C.acc};height:6px;border-radius:4px"></div></div><span style="font-size:11px">${pc}%</span></div></td></tr>`;}).join("");return`<div class="h2">📦 Ventas por Producto</div><div class="card"><div class="ov"><table><thead><tr><th>SKU</th><th>Producto</th><th>Uds.</th><th>Veces</th><th>Total</th><th>%</th></tr></thead><tbody>${rows||`<tr><td colspan="6" class="empty">Sin datos</td></tr>`}</tbody></table></div></div>`;}
+function rRPC(V){const m={};V.forEach(v=>(v.lineas||[]).forEach(l=>{const k=l.desc+"|||"+v.cliente;const prod=DB.productos.find(p=>p.nombre===l.desc);if(!m[k])m[k]={p:l.desc,c:v.cliente,q:0,t:0,n:0,sku:prod?.sku||"-"};m[k].q+=l.qty;m[k].t+=l.qty*l.pu;if(l.qty>0)m[k].n++;}));const rows=Object.values(m).sort((a,b)=>b.t-a.t).map(r=>`<tr><td style="color:${C.muted};font-size:12px">${h(r.sku)}</td><td><b>${h(r.p)}</b></td><td>${h(r.c)}</td><td>${r.q}</td><td>${r.n}</td><td style="color:${C.green};font-weight:600">${fmt(r.t)}</td></tr>`).join("");return`<div class="h2">🔗 Relación Producto - Cliente</div><div class="card"><div class="ov"><table><thead><tr><th>SKU</th><th>Producto</th><th>Cliente</th><th>Uds.</th><th>Veces</th><th>Total</th></tr></thead><tbody>${rows||`<tr><td colspan="6" class="empty">Sin datos</td></tr>`}</tbody></table></div></div>`;}
+function rDC(K){const pf={};K.forEach(c=>{if(!pf[c.fecha])pf[c.fecha]={cs:[],t:0};pf[c.fecha].cs.push(c);pf[c.fecha].t+=c.total;});const f=Object.keys(pf).sort().reverse();return`<div class="h2">📋 Diario de Compras</div><div class="grid2" style="margin-bottom:14px">${sc("Órdenes",K.filter(c=>!c.esDevolucion).length,C.acc)}${sc("Total",fmt(K.reduce((a,c)=>a+c.total,0)),C.acc)}</div>${f.map(d=>`<div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><b style="color:${C.acc2}">${d}</b><b style="color:${C.acc}">${fmt(pf[d].t)}</b></div><div class="ov"><table><thead><tr><th>#</th><th>Proveedor</th><th>Forma</th><th>Total</th><th>Estado</th><th>Usuario</th></tr></thead><tbody>${pf[d].cs.map(c=>`<tr><td style="font-size:11px;color:${C.muted}">#${c.id.slice(-6).toUpperCase()}</td><td>${h(c.proveedor)}</td><td>${c.fp}</td><td style="color:${C.acc};font-weight:600">${fmt(c.total)}</td><td>${bdg(c.estado,estColor(c.estado))}</td><td style="font-size:11px;color:${C.muted}">${c.usuario||"-"}</td></tr>`).join("")}</tbody></table></div></div>`).join("")||`<div class="card empty">Sin compras en el rango</div>`}`;}
+function rCP(K){const m={};K.forEach(c=>{if(!m[c.proveedor])m[c.proveedor]={n:0,t:0,compras:[]};if(!c.esDevolucion)m[c.proveedor].n++;m[c.proveedor].t+=c.total;m[c.proveedor].compras.push({fecha:c.fecha,total:c.total});});const lista=Object.entries(m).sort((a,b)=>b[1].t-a[1].t);const gt=K.reduce((a,c)=>a+c.total,0);const rows=lista.map(([p,d])=>{const pc=gt>0?((d.t/gt)*100).toFixed(1):0;return`<tr><td><b>${h(p)}</b></td><td>${d.n}</td><td style="color:${C.acc};font-weight:700">${fmt(d.t)}</td><td><div style="display:flex;align-items:center;gap:6px"><div style="background:#334155;border-radius:4px;height:6px;width:80px"><div style="width:${pc}%;background:${C.acc};height:6px;border-radius:4px"></div></div><span style="font-size:11px">${pc}%</span></div></td><td>${d.compras.map(c=>`<div style="font-size:11px;color:${C.muted}">${c.fecha} · ${fmt(c.total)}</div>`).join("")}</td></tr>`;}).join("");return`<div class="h2">🏭 Compras por Proveedor</div><div class="card"><div class="ov"><table><thead><tr><th>Proveedor</th><th>Órd.</th><th>Total</th><th>%</th><th>Fechas</th></tr></thead><tbody>${rows||`<tr><td colspan="5" class="empty">Sin datos</td></tr>`}${lista.length?`<tr style="background:${C.bg}"><td style="font-weight:700">TOTAL</td><td>${K.length}</td><td style="color:${C.acc};font-weight:700">${fmt(gt)}</td><td>100%</td><td></td></tr>`:""}</tbody></table></div></div>`;}
 function rER(V,K){const ing=V.reduce((a,v)=>a+v.total,0);const co=K.reduce((a,c)=>a+c.total,0);const ut=ing-co;const mg=ing>0?((ut/ing)*100).toFixed(1):0;return`<div class="h2">📈 Estado de Resultados</div><div class="card"><table><tbody>${[["Ingresos",fmt(ing),C.green,true],["Costo de Ventas",fmt(-co),C.red,false],["Utilidad Bruta",fmt(ut),ut>=0?C.green:C.red,true],["Margen Bruto",`${mg}%`,C.yel,true]].map(([l,v,c,b])=>`<tr><td style="padding:7px 10px;font-weight:${b?700:400};border-bottom:1px solid ${C.brd}">${l}</td><td style="padding:7px 10px;text-align:right;color:${c};font-weight:${b?700:400};border-bottom:1px solid ${C.brd}">${v}</td></tr>`).join("")}</tbody></table></div>`;}
 function rFC(V,K){const mE={},mS={};V.forEach(v=>{mE[v.fecha]=(mE[v.fecha]||0)+v.total;});K.forEach(c=>{mS[c.fecha]=(mS[c.fecha]||0)+c.total;});const fs=[...new Set([...Object.keys(mE),...Object.keys(mS)])].sort();let sl=0;const filas=fs.map(f=>{const e=mE[f]||0,s=mS[f]||0;sl+=e-s;return{f,e,s,sl};});const tE=Object.values(mE).reduce((a,b)=>a+b,0),tS=Object.values(mS).reduce((a,b)=>a+b,0);return`<div class="h2">💵 Flujo de Caja</div><div class="grid2" style="margin-bottom:14px">${sc("Entradas",fmt(tE),C.green)}${sc("Salidas",fmt(tS),C.red)}${sc("Saldo Neto",fmt(tE-tS),tE-tS>=0?C.green:C.red)}</div><div class="card"><div class="ov"><table><thead><tr><th>Fecha</th><th>Entradas</th><th>Salidas</th><th>Flujo</th><th>Saldo Acum.</th></tr></thead><tbody>${filas.map(r=>`<tr><td>${r.f}</td><td style="color:${C.green}">${fmt(r.e)}</td><td style="color:${C.red}">${fmt(r.s)}</td><td style="color:${r.e-r.s>=0?C.green:C.red};font-weight:600">${fmt(r.e-r.s)}</td><td style="font-weight:700;color:${r.sl>=0?C.green:C.red}">${fmt(r.sl)}</td></tr>`).join("")||`<tr><td colspan="5" class="empty">Sin movimientos</td></tr>`}</tbody></table></div></div>`;}
 function rCA(){const hoy=new Date();const pend=DB.ventas.filter(v=>v.estado==="pendiente"&&v.vence);const rng=[{l:"Al día",a:-Infinity,b:0,c:C.green},{l:"0-30 días",a:0,b:30,c:C.yel},{l:"31-60 días",a:30,b:60,c:C.acc},{l:"+60 días",a:60,b:Infinity,c:C.red}];const gs=rng.map(r=>{const it=pend.filter(v=>{const d=(hoy-new Date(v.vence))/86400000;return d>r.a&&d<=r.b;});return{...r,it,t:it.reduce((a,v)=>a+v.saldo,0)};});const cards=gs.map(g=>`<div class="stat-card" style="border-left-color:${g.c}"><div class="stat-lbl">${g.l}</div><div class="stat-val" style="color:${g.c}">${fmt(g.t)}</div><div style="font-size:11px;color:${C.muted};margin-top:4px">${g.it.length} facturas</div></div>`).join("");const rows=pend.map(v=>{const d=Math.round((hoy-new Date(v.vence))/86400000);const gc=gs.find(g=>d>g.a&&d<=g.b);return`<tr><td style="color:${C.muted};font-size:11px">#${v.id.slice(-6).toUpperCase()}</td><td>${h(v.cliente)}</td><td>${v.vence}</td><td style="color:${gc?.c||C.muted};font-weight:600">${d>0?`${d}d vencida`:`${-d}d restantes`}</td><td style="color:${C.yel};font-weight:700">${fmt(v.saldo)}</td></tr>`;}).join("");return`<div class="h2">📅 Análisis de Cartera</div><div class="grid2" style="margin-bottom:14px">${cards}</div><div class="card"><div class="ov"><table><thead><tr><th>#</th><th>Cliente</th><th>Vence</th><th>Antigüedad</th><th>Saldo</th></tr></thead><tbody>${rows||`<tr><td colspan="5" class="empty">Sin cartera vencida</td></tr>`}</tbody></table></div></div>`;}
-function rRO(V){const m={};V.forEach(v=>(v.lineas||[]).forEach(l=>{if(!m[l.desc])m[l.desc]={q:0,dias:new Set()};m[l.desc].q+=l.qty;m[l.desc].dias.add(v.fecha);}));const rows=Object.entries(m).sort((a,b)=>b[1].q-a[1].q).map(([p,d])=>{const prod=DB.productos.find(pr=>pr.nombre===p);return`<tr><td><b>${h(p)}</b></td><td>${d.q}</td><td>${d.dias.size}</td><td style="color:${C.green};font-weight:600">${prod?prod.stock:"-"}</td><td style="color:${prod&&prod.stock>0?(d.q/prod.stock>1?C.green:C.yel):C.muted}">${prod&&prod.stock>0?(d.q/prod.stock).toFixed(2)+"x":"-"}</td></tr>`;}).join("");return`<div class="h2">🔄 Rotación de Inventario</div><div class="card"><div class="ov"><table><thead><tr><th>Producto</th><th>Uds. Vend.</th><th>Días Activo</th><th>Stock Actual</th><th>Rotación</th></tr></thead><tbody>${rows||`<tr><td colspan="5" class="empty">Sin datos</td></tr>`}</tbody></table></div></div>`;}
+function rRO(V){const m={};V.forEach(v=>(v.lineas||[]).forEach(l=>{if(!m[l.desc])m[l.desc]={q:0,dias:new Set()};m[l.desc].q+=l.qty;if(l.qty>0)m[l.desc].dias.add(v.fecha);}));const rows=Object.entries(m).sort((a,b)=>b[1].q-a[1].q).map(([p,d])=>{const prod=DB.productos.find(pr=>pr.nombre===p);return`<tr><td><b>${h(p)}</b></td><td>${d.q}</td><td>${d.dias.size}</td><td style="color:${C.green};font-weight:600">${prod?prod.stock:"-"}</td><td style="color:${prod&&prod.stock>0?(d.q/prod.stock>1?C.green:C.yel):C.muted}">${prod&&prod.stock>0?(d.q/prod.stock).toFixed(2)+"x":"-"}</td></tr>`;}).join("");return`<div class="h2">🔄 Rotación de Inventario</div><div class="card"><div class="ov"><table><thead><tr><th>Producto</th><th>Uds. Vend.</th><th>Días Activo</th><th>Stock Actual</th><th>Rotación</th></tr></thead><tbody>${rows||`<tr><td colspan="5" class="empty">Sin datos</td></tr>`}</tbody></table></div></div>`;}
 function rFP(V){const m={};V.forEach(v=>{if(!m[v.fp])m[v.fp]={n:0,t:0};m[v.fp].n++;m[v.fp].t+=v.total;});const gt=V.reduce((a,v)=>a+v.total,0);const rows=Object.entries(m).sort((a,b)=>b[1].t-a[1].t).map(([fp,d])=>{const p=gt>0?((d.t/gt)*100).toFixed(1):0;return`<tr><td><b>${fp}</b></td><td>${d.n}</td><td style="color:${C.green};font-weight:700">${fmt(d.t)}</td><td>${p}%</td></tr>`;}).join("");return`<div class="h2">💳 Ventas por Forma de Pago</div><div class="card"><div class="ov"><table><thead><tr><th>Forma</th><th>Transacciones</th><th>Total</th><th>%</th></tr></thead><tbody>${rows||`<tr><td colspan="4" class="empty">Sin datos</td></tr>`}</tbody></table></div></div>`;}
-function rRC(V){const cliSel=RCS;const clis=[...new Set(V.map(v=>v.cliente))].sort();const sel=`<div style="margin-bottom:14px"><label class="lbl">Seleccionar Cliente</label><select onchange="RCS=this.value;R()" style="max-width:300px"><option value="">-- Todos --</option>${clis.map(c=>`<option value="${c}"${c===cliSel?" selected":""}>${h(c)}</option>`).join("")}</select></div>`;const vf=cliSel?V.filter(v=>v.cliente===cliSel):V;const total=vf.reduce((a,v)=>a+v.total,0);const rows=vf.map(v=>`<tr><td style="color:${C.muted};font-size:11px">#${v.id.slice(-6).toUpperCase()}</td><td>${v.fecha}</td><td>${v.fp}</td><td style="color:${C.green};font-weight:600">${fmt(v.total)}</td><td>${bdg(v.estado,v.estado==="pagado"?C.green:C.yel)}</td></tr>`).join("");return`<div class="h2">👤 Reporte por Cliente</div>${sel}<div class="card"><div class="ov"><table><thead><tr><th>#</th><th>Fecha</th><th>Forma</th><th>Total</th><th>Estado</th></tr></thead><tbody>${rows||`<tr><td colspan="5" class="empty">Sin transacciones</td></tr>`}</tbody></table></div>${vf.length?`<div style="text-align:right;padding:10px;border-top:1px solid ${C.brd}"><b>Total: <span style="color:${C.green}">${fmt(total)}</span></b></div>`:""}</div>`;}
+function rRC(V){const cliSel=RCS;const clis=[...new Set(V.map(v=>v.cliente))].sort();const sel=`<div style="margin-bottom:14px"><label class="lbl">Seleccionar Cliente</label><select onchange="RCS=this.value;R()" style="max-width:300px"><option value="">-- Todos --</option>${clis.map(c=>`<option value="${c}"${c===cliSel?" selected":""}>${h(c)}</option>`).join("")}</select></div>`;const vf=cliSel?V.filter(v=>v.cliente===cliSel):V;const total=vf.reduce((a,v)=>a+v.total,0);const rows=vf.map(v=>`<tr><td style="color:${C.muted};font-size:11px">#${v.id.slice(-6).toUpperCase()}</td><td>${v.fecha}</td><td>${v.fp}</td><td style="color:${C.green};font-weight:600">${fmt(v.total)}</td><td>${bdg(v.estado,estColor(v.estado))}</td></tr>`).join("");return`<div class="h2">👤 Reporte por Cliente</div>${sel}<div class="card"><div class="ov"><table><thead><tr><th>#</th><th>Fecha</th><th>Forma</th><th>Total</th><th>Estado</th></tr></thead><tbody>${rows||`<tr><td colspan="5" class="empty">Sin transacciones</td></tr>`}</tbody></table></div>${vf.length?`<div style="text-align:right;padding:10px;border-top:1px solid ${C.brd}"><b>Total: <span style="color:${C.green}">${fmt(total)}</span></b></div>`:""}</div>`;}
 
 let SCAT=[];
 function toggleScat(cat){
@@ -1371,7 +1373,7 @@ const html=pStyle("portrait")+pHead("Comprobante de venta","N° "+v.id.slice(-6)
 (v.estado==="anulado"?`<div class="p-anul">ANULADO</div>`:"")+
 `<div class="p-info">${kv("Fecha",v.fecha)}${kv("Estado",v.estado)}${kv("Cliente",v.cliente)}${kv("RUC/Cédula",c.ruc)}${kv("Forma de pago",v.fp)}${kv("Vence",v.vence)}${kv("Teléfono",c.telefono)}${kv("Registrado por",v.usuario)}</div>`+
 `<table><thead><tr><th>Descripción</th><th class="r">Cant.</th><th class="r">P. Unit.</th><th class="r">Total</th></tr></thead><tbody>${lin}</tbody></table>`+
-`<div class="p-tot"><div>Total: <b>${fmt(v.total)}</b></div>${v.estado!=="anulado"?`<div>Cobrado: ${fmt(v.total-v.saldo)}</div><div>Saldo: <b>${fmt(v.saldo)}</b></div>`:""}</div>`+
+`<div class="p-tot"><div>Total: <b>${fmt(v.total)}</b></div>${v.devuelto>0?`<div>Devuelto: ${fmt(v.devuelto)}</div>`:""}${v.estado!=="anulado"?`<div>Cobrado: ${fmt(v.total-(v.devuelto||0)-v.saldo)}</div><div>Saldo: <b>${fmt(v.saldo)}</b></div>`:""}</div>`+
 pagosHtml+`<div class="p-pie">Documento interno de control. No es una factura autorizada por el SRI.</div>`;
 doPrint(`Venta_${v.id.slice(-6).toUpperCase()}_${v.cliente}`,html);
 }
@@ -1385,7 +1387,7 @@ const html=pStyle("portrait")+pHead("Comprobante de compra","N° "+k.id.slice(-6
 (k.estado==="anulado"?`<div class="p-anul">ANULADO</div>`:"")+
 `<div class="p-info">${kv("Fecha",k.fecha)}${kv("Estado",k.estado)}${kv("Proveedor",k.proveedor)}${kv("RUC",p.ruc)}${kv("Forma de pago",k.fp)}${kv("Vence",k.vence)}${kv("Teléfono",p.telefono)}${kv("Registrado por",k.usuario)}</div>`+
 `<table><thead><tr><th>Descripción</th><th class="r">Cant.</th><th class="r">Costo</th><th class="r">Total</th></tr></thead><tbody>${lin}</tbody></table>`+
-`<div class="p-tot"><div>Total: <b>${fmt(k.total)}</b></div>${k.estado!=="anulado"?`<div>Pagado: ${fmt(k.total-k.saldo)}</div><div>Saldo: <b>${fmt(k.saldo)}</b></div>`:""}</div>`+
+`<div class="p-tot"><div>Total: <b>${fmt(k.total)}</b></div>${k.devuelto>0?`<div>Devuelto: ${fmt(k.devuelto)}</div>`:""}${k.estado!=="anulado"?`<div>Pagado: ${fmt(k.total-(k.devuelto||0)-k.saldo)}</div><div>Saldo: <b>${fmt(k.saldo)}</b></div>`:""}</div>`+
 pagosHtml+`<div class="p-pie">Documento interno de control. No es una factura autorizada por el SRI.</div>`;
 doPrint(`Compra_${k.id.slice(-6).toUpperCase()}_${k.proveedor}`,html);
 }
@@ -1408,6 +1410,185 @@ extra+=`<div class="p-blk"><b>Notas</b><div class="p-notas">${h(e.notas||"")}</d
 }
 const html=pStyle("portrait")+pHead(titulo,e.nombre||"")+img+`<div class="p-info">${filas.map(([l,v])=>kv(l,v)).join("")}</div>`+extra;
 doPrint(`${titulo.replace("Ficha de ","Ficha_")}_${e.nombre}`,html);
+}
+
+/* ═══ DEVOLUCIONES Y SALDO A FAVOR ═══ */
+const r2=n=>Math.round((+n||0)*100)/100;
+const sumDev=t=>DB.devoluciones.filter(d=>d.tipo===t).reduce((a,d)=>a+d.total,0);
+async function fsBatch(ops){
+for(let i=0;i<ops.length;i+=450){
+const b=db.batch();
+ops.slice(i,i+450).forEach(([c,id,d])=>b.set(db.collection(c).doc(id),d));
+await b.commit();
+}
+}
+function devPrevia(docId,k){return DB.devoluciones.filter(d=>d.docId===docId).reduce((a,d)=>a+d.lineas.filter(l=>l.ki===k).reduce((s,l)=>s+l.qty,0),0);}
+function devDeDoc(docId){return DB.devoluciones.filter(d=>d.docId===docId);}
+function credDisp(ct,ter){return r2(DB.creditos.filter(c=>c.tipo===ct&&c.tercero===ter&&c.estado==="vigente").reduce((a,c)=>a+c.saldo,0));}
+function credBadge(tipo,e){const m=credDisp(tipo==="clientes"?"cliente":"proveedor",e.nombre);return m>0?` ${bdg("Saldo a favor "+fmt(m),C.blue)}`:"";}
+function prodDeLinea(l){return(l.pid!==""&&l.pid!==undefined&&l.pid!==null)?(DB.productos[+l.pid]||null):null;}
+function devPseudo(tipo){
+const esV=tipo==="venta";
+return DB.devoluciones.filter(d=>d.tipo===tipo).map(d=>{
+const base={id:d.id,fecha:d.fecha,fp:"devolución",total:-d.total,saldo:0,estado:"devolución",usuario:d.usuario,pagos:[],esDevolucion:true,
+lineas:d.lineas.map(l=>esV?{desc:l.desc,qty:-l.qty,pu:l.pu}:{desc:l.desc,qty:-l.qty,costo:l.costo})};
+return esV?{...base,cliente:d.tercero}:{...base,proveedor:d.tercero};
+});
+}
+function devNueva(tipo,i){
+const doc=tipo==="venta"?DB.ventas[i]:DB.compras[i];
+if(!doc)return;
+if(doc.estado==="anulado")return alert("No se puede devolver: el documento está anulado.");
+if(doc.esSaldoInicial)return alert("No se puede devolver un saldo inicial.");
+if(doc.estado==="devuelta")return alert("Este documento ya fue devuelto por completo.");
+DV={tipo,idx:i,fecha:tod(),motivo:"",dest:"reembolso",forma:"efectivo",lns:(doc.lineas||[]).map((l,k)=>({k,qty:0}))};
+R();
+}
+function devSetQty(k,v){DV.lns[k].qty=Math.max(0,+v||0);R();}
+function devCalc(){
+const f=DV;const esV=f.tipo==="venta";
+const doc=esV?DB.ventas[f.idx]:DB.compras[f.idx];
+const filas=(doc.lineas||[]).map((l,k)=>{
+const prev=devPrevia(doc.id,k);
+const disp=Math.max(0,l.qty-prev);
+const q=Math.min(Math.max(0,+f.lns[k].qty||0),disp);
+const pu=esV?l.pu:l.costo;
+const p=prodDeLinea(l);
+return{k,l,prev,disp,q,pu,valor:r2(q*pu),stock:p?p.stock:null};
+});
+const total=r2(filas.reduce((a,x)=>a+x.valor,0));
+const aplicado=r2(Math.min(total,doc.saldo||0));
+const resto=r2(total-aplicado);
+return{doc,filas,total,aplicado,resto,esV};
+}
+function buildDevForm(){
+const c=devCalc();const f=DV;const doc=c.doc;const esV=c.esV;
+const ter=esV?doc.cliente:doc.proveedor;
+const rows=c.filas.map(x=>`<tr><td>${h(x.l.desc)}</td><td>${x.l.qty}</td><td>${x.prev}</td><td>${x.disp}</td><td>${fmt(x.pu)}</td>
+<td><input type="number" min="0" max="${x.disp}" step="1" value="${x.q}" ${x.disp===0?"disabled":""} onchange="devSetQty(${x.k},this.value)" style="width:90px">${(!esV&&x.stock!==null&&x.q>x.stock)?`<div style="color:${C.red};font-size:11px;margin-top:3px">Stock actual: ${x.stock}</div>`:""}</td>
+<td style="font-weight:600">${fmt(x.valor)}</td></tr>`).join("");
+const formas=["efectivo","transferencia","tarjeta","cheque","otro"];
+const destino=c.resto>0?`<div style="border-top:1px solid ${C.brd};margin-top:12px;padding-top:12px">
+<div style="font-size:13px;margin-bottom:8px">${esV?`El cliente ya había pagado <b>${fmt(c.resto)}</b> de lo que se devuelve. ¿Qué se hace con ese dinero?`:`Ya se había pagado <b>${fmt(c.resto)}</b> al proveedor de lo que se devuelve. ¿Qué se hace con ese dinero?`}</div>
+<div class="grid2">
+<div><label class="lbl">Destino del dinero</label><select onchange="DV.dest=this.value;R()">
+<option value="reembolso"${f.dest==="reembolso"?" selected":""}>${esV?"Devolver el dinero al cliente":"Recuperar el dinero del proveedor"}</option>
+<option value="credito"${f.dest==="credito"?" selected":""}>${esV?"Dejarlo como saldo a favor del cliente":"Dejarlo como saldo a favor con el proveedor"}</option></select></div>
+${f.dest==="reembolso"?`<div><label class="lbl">Forma</label><select onchange="DV.forma=this.value">${formas.map(x=>`<option value="${x}"${f.forma===x?" selected":""}>${x}</option>`).join("")}</select></div>`:""}
+</div></div>`:"";
+return`<div style="display:flex;gap:8px;margin-bottom:10px">${bx("← Volver",C.muted,"DV=null;R()")}<b style="line-height:2">${esV?"Devolución de venta":"Devolución de compra"} · ${h(ter)} · #${doc.id.slice(-6).toUpperCase()}</b></div>
+<div class="card"><div class="grid2">
+<div><label class="lbl">Fecha</label><input type="date" value="${f.fecha}" onchange="DV.fecha=this.value"></div>
+<div><label class="lbl">Motivo</label><input value="${h(f.motivo)}" placeholder="Ej.: producto con defecto" onchange="DV.motivo=this.value"></div>
+</div></div>
+<div class="card"><div class="h2">Productos a devolver</div>
+<div class="ov"><table><thead><tr><th>Descripción</th><th>${esV?"Vendido":"Comprado"}</th><th>Ya devuelto</th><th>Disponible</th><th>${esV?"P.Unit.":"Costo"}</th><th>A devolver</th><th>Valor</th></tr></thead><tbody>${rows}</tbody></table></div>
+<div style="text-align:right;margin-top:12px">
+<div style="font-size:15px;font-weight:700">Valor a devolver: <span style="color:${C.yel}">${fmt(c.total)}</span></div>
+<div style="font-size:12px;color:${C.muted};margin-top:4px">Saldo pendiente de la factura: ${fmt(doc.saldo||0)} · se descuenta ${fmt(c.aplicado)}</div>
+</div>${destino}</div>
+${bx("↩ Registrar devolución",C.yel,"devGuardar()")}`;
+}
+async function devGuardar(){
+if(!DV)return;
+const c=devCalc();const f=DV;const doc=c.doc;const esV=c.esV;
+const sel=c.filas.filter(x=>x.q>0);
+if(!sel.length)return alert("Indique la cantidad a devolver de al menos un producto.");
+if(!f.fecha)return alert("Indique la fecha.");
+const delta={};
+for(const x of sel){if(prodDeLinea(x.l)){const k=+x.l.pid;delta[k]=(delta[k]||0)+(esV?x.q:-x.q);}}
+if(!esV){for(const k in delta){const p=DB.productos[+k];if(p.stock+delta[k]<0)return alert(`No hay stock suficiente de "${p.nombre}" para devolverlo al proveedor (stock actual: ${p.stock}). Si ya se vendió, no se puede devolver.`);}}
+const lineas=sel.map(x=>{
+const o=x.l;const p=prodDeLinea(o);
+const base={ki:x.k,pid:o.pid,desc:o.desc,qty:x.q};
+if(esV){const cu=(o.costo!==undefined&&o.costo!==null)?o.costo:(p?(p.costo||0):0);return{...base,pu:o.pu,costo:cu,costoEstimado:(o.costo===undefined||o.costo===null)};}
+return{...base,costo:o.costo};
+});
+const dest=c.resto>0?f.dest:"";
+const dev={id:uid(),tipo:f.tipo,fecha:f.fecha,docId:doc.id,tercero:esV?doc.cliente:doc.proveedor,lineas,total:c.total,aplicado:c.aplicado,reembolso:dest==="reembolso"?c.resto:0,credito:dest==="credito"?c.resto:0,forma:dest==="reembolso"?f.forma:"",motivo:(f.motivo||"").trim(),usuario:CU?.email||""};
+const completa=(doc.lineas||[]).every((l,k)=>l.qty-devPrevia(doc.id,k)-c.filas[k].q<=0);
+const saldoNuevo=r2((doc.saldo||0)-c.aplicado);
+let estado=doc.estado;
+if(completa)estado="devuelta";else if(doc.estado==="pendiente"&&saldoNuevo===0)estado="pagado";
+const upd={...doc,devuelto:r2((doc.devuelto||0)+c.total),saldo:saldoNuevo,estado};
+const ops=[["devoluciones",dev.id,dev],[esV?"ventas":"compras",doc.id,upd]];
+const nuevos={};
+for(const k in delta){const p=DB.productos[+k];const np={...p,stock:p.stock+delta[k]};nuevos[k]=np;ops.push(["productos",np.id,np]);}
+let cred=null;
+if(dest==="credito"){cred={id:uid(),tipo:esV?"cliente":"proveedor",tercero:dev.tercero,monto:c.resto,saldo:c.resto,fecha:f.fecha,devId:dev.id,estado:"vigente"};ops.push(["creditos",cred.id,cred]);}
+try{
+await fsBatch(ops);
+DB.devoluciones.push(dev);
+(esV?DB.ventas:DB.compras)[f.idx]=upd;
+for(const k in nuevos)DB.productos[+k]=nuevos[k];
+if(cred)DB.creditos.push(cred);
+await logAct(esV?"DEVOLUCIÓN VENTA":"DEVOLUCIÓN COMPRA",`${dev.tercero} · ${fmt(c.total)}`);
+DV=null;R();
+}catch(e){alert("Error: "+e.message);}
+}
+function devBloque(doc,esV){
+const ds=devDeDoc(doc.id);
+if(!ds.length)return"";
+return`<div class="card"><div class="h2">Devoluciones</div><div class="ov"><table><thead><tr><th>Fecha</th><th>Productos</th><th>Valor</th><th>Descontado del saldo</th><th>Destino del dinero</th><th>Motivo</th><th></th></tr></thead><tbody>${ds.map(d=>`<tr><td>${d.fecha}</td><td>${d.lineas.map(l=>`${h(l.desc)} x${l.qty}`).join(", ")}</td><td style="color:${C.yel};font-weight:600">${fmt(d.total)}</td><td>${fmt(d.aplicado)}</td><td>${d.reembolso>0?`${esV?"Reembolso":"Recuperado"} ${fmt(d.reembolso)} (${h(d.forma)})`:(d.credito>0?`Saldo a favor ${fmt(d.credito)}`:"-")}</td><td>${h(d.motivo||"-")}</td><td>${bx("🖨",C.muted,`printDevolucion('${d.id}')`,"padding:4px 8px")}</td></tr>`).join("")}</tbody></table></div></div>`;
+}
+function credPanel(tipo,item){
+const ct=tipo==="cobrar"?"cliente":"proveedor";const ter=tipo==="cobrar"?item.cliente:item.proveedor;
+const d=credDisp(ct,ter);
+if(d<=0||!(item.saldo>0))return"";
+const usar=r2(Math.min(d,item.saldo));
+return`<div style="background:#38bdf818;border:1px solid ${C.blue};border-radius:8px;padding:10px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:13px">Saldo a favor disponible de <b>${h(ter)}</b>: <b style="color:${C.blue}">${fmt(d)}</b></span>${bx("Aplicar "+fmt(usar),C.blue,`aplicarCredito('${tipo}')`)}</div>`;
+}
+async function aplicarCredito(tipo){
+const cob=tipo==="cobrar";
+const idx=cob?ST.cxcIdx:ST.cxpIdx;
+const item=cob?DB.ventas[idx]:DB.compras[idx];
+if(!item)return;
+const ct=cob?"cliente":"proveedor";const ter=cob?item.cliente:item.proveedor;
+const usar=r2(Math.min(credDisp(ct,ter),item.saldo||0));
+if(usar<=0)return;
+let falta=usar;
+const creds=DB.creditos.filter(c=>c.tipo===ct&&c.tercero===ter&&c.estado==="vigente"&&c.saldo>0).sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||""));
+const ops=[];const nuevos=[];
+for(const c of creds){
+if(falta<=0)break;
+const t=r2(Math.min(c.saldo,falta));
+const u={...c,saldo:r2(c.saldo-t)};
+if(u.saldo<=0)u.estado="agotado";
+ops.push(["creditos",c.id,u]);nuevos.push(u);falta=r2(falta-t);
+}
+const pago={fecha:tod(),monto:usar,forma:"saldo a favor",usuario:CU?.email||""};
+const saldo=r2((item.saldo||0)-usar);
+const updated={...item,saldo,estado:saldo===0?"pagado":"pendiente",pagos:[...(item.pagos||[]),pago]};
+ops.push([cob?"ventas":"compras",item.id,updated]);
+try{
+await fsBatch(ops);
+nuevos.forEach(u=>{const j=DB.creditos.findIndex(c=>c.id===u.id);if(j>=0)DB.creditos[j]=u;});
+(cob?DB.ventas:DB.compras)[idx]=updated;
+await logAct("SALDO A FAVOR APLICADO",`${ter} · ${fmt(usar)}`);
+if(saldo===0){if(cob)ST.cxcIdx=-1;else ST.cxpIdx=-1;}
+PM.monto=saldo;R();
+}catch(e){alert("Error: "+e.message);}
+}
+function rDEV(){
+const D=DB.devoluciones.filter(d=>d.fecha>=ST.rD&&d.fecha<=ST.rH).sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+const sm=(t,f)=>D.filter(d=>d.tipo===t).reduce((a,d)=>a+d[f],0);
+const rows=D.map(d=>`<tr><td>${d.fecha}</td><td>${d.tipo==="venta"?"Venta":"Compra"}</td><td style="font-size:11px;color:${C.muted}">#${String(d.docId).slice(-6).toUpperCase()}</td><td>${h(d.tercero)}</td><td style="font-weight:600">${fmt(d.total)}</td><td>${fmt(d.aplicado)}</td><td>${fmt(d.reembolso)}</td><td>${fmt(d.credito)}</td><td>${h(d.motivo||"-")}</td><td style="font-size:11px;color:${C.muted}">${h(d.usuario||"-")}</td></tr>`).join("");
+return`<div class="h2">↩ Devoluciones</div><div class="grid2" style="margin-bottom:14px">${sc("Devoluciones de ventas",fmt(sm("venta","total")),C.yel)}${sc("Devoluciones de compras",fmt(sm("compra","total")),C.acc)}</div>
+<div class="card"><div class="ov"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Doc.</th><th>Cliente / Proveedor</th><th>Valor</th><th>Descontado del saldo</th><th>Reembolso</th><th>Saldo a favor</th><th>Motivo</th><th>Usuario</th></tr></thead>
+<tbody>${rows||`<tr><td colspan="10" class="empty">Sin devoluciones en el rango</td></tr>`}</tbody></table></div></div>`;
+}
+function printDevolucion(id){
+const d=DB.devoluciones.find(x=>x.id===id);if(!d)return;
+const esV=d.tipo==="venta";
+const t=(esV?DB.clientes:DB.proveedores).find(x=>x.nombre===d.tercero)||{};
+const lin=d.lineas.map(l=>{const u=esV?l.pu:l.costo;return`<tr><td>${h(l.desc)}</td><td class="r">${l.qty}</td><td class="r">${fmt(u)}</td><td class="r">${fmt(l.qty*u)}</td></tr>`;}).join("");
+const dest=d.reembolso>0?`${esV?"Reembolso al cliente":"Dinero recuperado del proveedor"}: ${fmt(d.reembolso)} (${d.forma})`:(d.credito>0?`Saldo a favor ${esV?"del cliente":"con el proveedor"}: ${fmt(d.credito)}`:"");
+const html=pStyle("portrait")+pHead(esV?"Devolución de venta":"Devolución de compra","N° "+d.id.slice(-6).toUpperCase())+
+`<div class="p-info">${kv("Fecha",d.fecha)}${kv(esV?"Cliente":"Proveedor",d.tercero)}${kv(esV?"RUC/Cédula":"RUC",t.ruc)}${kv("Documento original","N° "+String(d.docId).slice(-6).toUpperCase())}${kv("Motivo",d.motivo)}${kv("Registrado por",d.usuario)}</div>`+
+`<table><thead><tr><th>Descripción</th><th class="r">Cant.</th><th class="r">${esV?"P. Unit.":"Costo"}</th><th class="r">Total</th></tr></thead><tbody>${lin}</tbody></table>`+
+`<div class="p-tot"><div>Valor devuelto: <b>${fmt(d.total)}</b></div><div>Descontado del saldo pendiente: ${fmt(d.aplicado)}</div>${dest?`<div>${dest}</div>`:""}</div>`+
+`<div class="p-pie">Documento interno de control. No es una nota de crédito autorizada por el SRI.</div>`;
+doPrint(`Devolucion_${d.id.slice(-6).toUpperCase()}_${d.tercero}`,html);
 }
 </script>
 </body>
