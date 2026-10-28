@@ -1135,7 +1135,7 @@ catch(e){alert("Error: "+e.message);}
 /* ════════════════════════
    REPORTES
    ════════════════════════ */
-const SUBS=[{k:"dv",l:"📋 Diario Ventas"},{k:"vc",l:"👥 Ventas x Cliente"},{k:"vp",l:"📦 Ventas x Producto"},{k:"rpc",l:"🔗 Prod-Cliente"},{k:"dc",l:"📋 Diario Compras"},{k:"cp",l:"🏭 Compras x Prov."},{k:"er",l:"📈 Estado Result."},{k:"fc",l:"💵 Flujo Caja"},{k:"ca",l:"📅 Cartera"},{k:"ro",l:"🔄 Rotación"},{k:"fp",l:"💳 Formas Pago"},{k:"rc",l:"👤 Rep. Cliente"},{k:"inv",l:"📦 Inventario"},{k:"dev",l:"↩ Devoluciones"}];
+const SUBS=[{k:"dv",l:"📋 Diario Ventas"},{k:"vc",l:"👥 Ventas x Cliente"},{k:"vp",l:"📦 Ventas x Producto"},{k:"rpc",l:"🔗 Prod-Cliente"},{k:"dc",l:"📋 Diario Compras"},{k:"cp",l:"🏭 Compras x Prov."},{k:"er",l:"📈 Estado Result."},{k:"fc",l:"💵 Flujo Caja"},{k:"cob",l:"💰 Cobros y Pagos"},{k:"ca",l:"📅 Cartera"},{k:"ro",l:"🔄 Rotación"},{k:"fp",l:"💳 Formas Pago"},{k:"rc",l:"👤 Rep. Cliente"},{k:"inv",l:"📦 Inventario"},{k:"dev",l:"↩ Devoluciones"},{k:"diag",l:"🩺 Diagnóstico"}];
 function buildRep(){
 const tabs=SUBS.map(s=>`<button onclick="ST.sub='${s.k}';R()" style="background:${ST.sub===s.k?"#6366f1":"#1e293b"};color:${ST.sub===s.k?"#fff":"#94a3b8"};border:1px solid #334155;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600">${s.l}</button>`).join("");
 const filtro=`<div class="card" style="margin-bottom:14px"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
@@ -1153,8 +1153,9 @@ if(ST.sub==="dv")body=rDV(V);else if(ST.sub==="vc")body=rVC(V);else if(ST.sub===
 else if(ST.sub==="rpc")body=rRPC(V);else if(ST.sub==="dc")body=rDC(K);else if(ST.sub==="cp")body=rCP(K);
 else if(ST.sub==="er")body=rER(V,K);else if(ST.sub==="fc")body=rFC(V,K);else if(ST.sub==="ca")body=rCA();
 else if(ST.sub==="ro")body=rRO(V);else if(ST.sub==="fp")body=rFP(V);else if(ST.sub==="rc")body=rRC(V);
-else if(ST.sub==="inv")body=rINV();else if(ST.sub==="dev")body=rDEV();
-return`<div class="sub-tabs">${tabs}</div>${filtro}<div id="rep-body">${body}</div>`;
+else if(ST.sub==="inv")body=rINV();else if(ST.sub==="dev")body=rDEV();else if(ST.sub==="diag")body=rDIAG();else if(ST.sub==="cob")body=rCOB();
+const filtroDiag=`<div class="card" style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:12px;color:${C.muted}">Revisa todos los datos tal como están hoy. Solo lectura: no modifica nada.</span>${bx("🖨 Imprimir / PDF",C.acc,"printReporte()")}</div>`;
+return`<div class="sub-tabs">${tabs}</div>${ST.sub==="diag"?filtroDiag:filtro}<div id="rep-body">${body}</div>`;
 }
 function rDV(V){const pf={};V.forEach(v=>{if(!pf[v.fecha])pf[v.fecha]={vs:[],t:0};pf[v.fecha].vs.push(v);pf[v.fecha].t+=v.total;});const f=Object.keys(pf).sort().reverse();return`<div class="h2">📋 Diario de Ventas</div><div class="grid2" style="margin-bottom:14px">${sc("Facturas",V.filter(v=>!v.esDevolucion).length,C.acc)}${sc("Total",fmt(V.reduce((a,v)=>a+v.total,0)),C.green)}</div>${f.map(d=>`<div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><b style="color:${C.acc2}">${d}</b><b style="color:${C.green}">${fmt(pf[d].t)}</b></div><div class="ov"><table><thead><tr><th>#</th><th>Cliente</th><th>Forma</th><th>Total</th><th>Estado</th><th>Usuario</th></tr></thead><tbody>${pf[d].vs.map(v=>`<tr><td style="font-size:11px;color:${C.muted}">#${v.id.slice(-6).toUpperCase()}</td><td>${h(v.cliente)}</td><td>${v.fp}</td><td style="color:${C.green};font-weight:600">${fmt(v.total)}</td><td>${bdg(v.estado,estColor(v.estado))}</td><td style="font-size:11px;color:${C.muted}">${v.usuario||"-"}</td></tr>`).join("")}</tbody></table></div></div>`).join("")||`<div class="card empty">Sin ventas en el rango</div>`}`;}
 function rVC(V){const m={};V.forEach(v=>{if(!m[v.cliente])m[v.cliente]={n:0,t:0};if(!v.esDevolucion)m[v.cliente].n++;m[v.cliente].t+=v.total;});const lista=Object.entries(m).sort((a,b)=>b[1].t-a[1].t);const gt=V.reduce((a,v)=>a+v.total,0);const rows=lista.map(([c,d])=>{const p=gt>0?((d.t/gt)*100).toFixed(1):0;return`<tr><td><b>${h(c)}</b></td><td>${d.n}</td><td style="color:${C.green};font-weight:700">${fmt(d.t)}</td><td><div style="display:flex;align-items:center;gap:6px"><div style="background:#334155;border-radius:4px;height:6px;width:80px"><div style="width:${p}%;background:${C.green};height:6px;border-radius:4px"></div></div><span style="font-size:11px">${p}%</span></div></td></tr>`;}).join("");return`<div class="h2">👥 Ventas por Cliente</div><div class="card"><div class="ov"><table><thead><tr><th>Cliente</th><th>Fact.</th><th>Total</th><th>%</th></tr></thead><tbody>${rows||`<tr><td colspan="4" class="empty">Sin datos</td></tr>`}${lista.length?`<tr style="background:${C.bg}"><td style="font-weight:700">TOTAL</td><td>${V.length}</td><td style="color:${C.green};font-weight:700">${fmt(gt)}</td><td>100%</td></tr>`:""}</tbody></table></div></div>`;}
@@ -1360,8 +1361,9 @@ const nombre=sb?sb.l.replace(/^[^A-Za-zÁ-ú0-9]+/,""):"Reporte";
 let sub=`Del ${ST.rD} al ${ST.rH}`;
 if(ST.sub==="ca")sub=`Cartera al ${tod()}`;
 else if(ST.sub==="inv")sub=`Existencias al ${tod()}`;
+else if(ST.sub==="diag")sub=`Datos al ${tod()}`;
 else if(ST.sub==="rc")sub=`Cliente: ${RCS||"Todos"} · ${sub}`;
-doPrint(`Reporte_${nombre}_${ST.sub==="ca"||ST.sub==="inv"?tod():ST.rD+"_a_"+ST.rH}`,pStyle("landscape")+pHead("Reporte: "+nombre,sub)+c.innerHTML);
+doPrint(`Reporte_${nombre}_${ST.sub==="ca"||ST.sub==="inv"||ST.sub==="diag"?tod():ST.rD+"_a_"+ST.rH}`,pStyle("landscape")+pHead("Reporte: "+nombre,sub)+c.innerHTML);
 }
 function printVenta(i){
 const v=DB.ventas[i];if(!v)return;
@@ -1589,6 +1591,206 @@ const html=pStyle("portrait")+pHead(esV?"Devolución de venta":"Devolución de c
 `<div class="p-tot"><div>Valor devuelto: <b>${fmt(d.total)}</b></div><div>Descontado del saldo pendiente: ${fmt(d.aplicado)}</div>${dest?`<div>${dest}</div>`:""}</div>`+
 `<div class="p-pie">Documento interno de control. No es una nota de crédito autorizada por el SRI.</div>`;
 doPrint(`Devolucion_${d.id.slice(-6).toUpperCase()}_${d.tercero}`,html);
+}
+
+/* ═══ DIAGNÓSTICO DE DATOS (solo lectura) ═══ */
+const dgNz=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ").trim();
+const dgId=d=>"#"+String(d.id||"").slice(-6).toUpperCase();
+const dgFecha=s=>/^\d{4}-\d{2}-\d{2}$/.test(String(s||""))&&!isNaN(new Date(s));
+function diagnostico(){
+const out=[];
+const add=(grupo,nivel,titulo,ayuda,cols,filas)=>out.push({grupo,nivel,titulo,ayuda,cols,filas});
+const hoy=tod();
+const docs=[...DB.ventas.map(d=>({d,t:"Venta"})),...DB.compras.map(d=>({d,t:"Compra"}))];
+const ter=x=>x.t==="Venta"?x.d.cliente:x.d.proveedor;
+const pu=(x,l)=>+(x.t==="Venta"?l.pu:l.costo);
+const sumLin=x=>(x.d.lineas||[]).reduce((a,l)=>a+(+l.qty||0)*(pu(x,l)||0),0);
+const sumPagos=d=>(d.pagos||[]).reduce((a,p)=>a+(+p.monto||0),0);
+const aplicadoDoc=id=>DB.devoluciones.filter(v=>v.docId===id).reduce((a,v)=>a+(+v.aplicado||0),0);
+const base=x=>[x.t,dgId(x.d),x.d.fecha||"-",ter(x)||"(vacío)"];
+const CB=["Tipo","Doc.","Fecha","Cliente / Proveedor"];
+
+// ---- Facturas
+let f=[];
+docs.forEach(x=>{const d=x.d;let esp;
+if(d.estado==="anulado"||d.fp==="contado")esp=0;else esp=r2((+d.total||0)-sumPagos(d)-aplicadoDoc(d.id));
+if(Math.abs(r2(+d.saldo||0)-esp)>0.005)f.push([...base(x),fmt(d.total),fmt(d.saldo),fmt(esp)]);});
+add("Facturas","error","Saldo que no coincide con total menos cobros","El saldo debería ser el total menos los cobros y lo descontado por devoluciones (las de contado y las anuladas deben tener saldo 0). Se corrige en Firebase, en el campo saldo del documento.",[...CB,"Total","Saldo guardado","Saldo esperado"],f);
+f=[];
+docs.forEach(x=>{const d=x.d;const s=+d.saldo||0;let m="";
+if(!["pendiente","pagado","anulado","devuelta"].includes(d.estado))m=`Estado desconocido: "${d.estado||"vacío"}"`;
+else if(d.estado==="pendiente"&&s<=0.005)m="Pendiente con saldo 0";
+else if(d.estado==="pagado"&&s>0.005)m="Pagado con saldo mayor que 0";
+else if(d.estado==="devuelta"&&Math.abs(s)>0.005)m="Devuelta con saldo distinto de 0";
+else if(d.estado==="anulado"&&Math.abs(s)>0.005)m="Anulado con saldo distinto de 0";
+if(m)f.push([...base(x),d.estado||"-",fmt(s),m]);});
+add("Facturas","error","Estado que contradice el saldo","Una factura solo es pendiente si debe algo, y pagado cuando el saldo es 0. Se corrige en Firebase, en el campo estado.",[...CB,"Estado","Saldo","Problema"],f);
+f=[];
+docs.forEach(x=>{const sl=r2(sumLin(x));if(Math.abs(sl-r2(+x.d.total||0))>0.015)f.push([...base(x),fmt(x.d.total),fmt(sl)]);});
+add("Facturas","error","Total distinto de la suma de sus líneas","El total guardado no coincide con cantidad por precio (o costo) de sus líneas. Suele pasar si se editó un documento directo en Firebase.",[...CB,"Total guardado","Suma de líneas"],f);
+f=[];
+docs.forEach(x=>{const L=x.d.lineas||[];let m="";
+if(!L.length)m="Sin líneas";
+else if(L.some(l=>!(+l.qty>0)))m="Línea con cantidad 0 o inválida";
+else if(L.some(l=>isNaN(pu(x,l))))m="Línea con precio o costo inválido";
+if(m)f.push([...base(x),m]);});
+add("Facturas","error","Documentos sin líneas o con líneas inválidas","Sin líneas válidas el documento no se puede imprimir ni devolver bien.",[...CB,"Problema"],f);
+f=[];
+docs.forEach(x=>{const d=x.d;let m="";
+if(!dgFecha(d.fecha))m="Fecha vacía o con formato inválido";
+else if(d.fecha>hoy)m="Fecha futura";
+else if(d.vence&&!dgFecha(d.vence))m="Fecha de vencimiento inválida";
+if(m)f.push([...base(x),d.fecha||"-",m]);});
+add("Facturas","error","Fechas inválidas","Las fechas deben ser AAAA-MM-DD. Una fecha mala saca el documento de los reportes por rango.",[...CB,"Fecha","Problema"],f);
+f=[];
+docs.forEach(x=>{const d=x.d;const P=d.pagos||[];let m="";
+if(P.some(p=>!(+p.monto>0)))m="Cobro o pago con monto 0 o inválido";
+else if(P.some(p=>!dgFecha(p.fecha)))m="Cobro o pago con fecha inválida";
+else if(d.fp!=="contado"&&sumPagos(d)>(+d.total||0)+0.005)m="Cobros o pagos mayores que el total";
+if(m)f.push([...base(x),fmt(d.total),fmt(sumPagos(d)),m]);});
+add("Facturas","error","Cobros o pagos incoherentes","Revisa el campo pagos del documento.",[...CB,"Total","Suma de pagos","Problema"],f);
+const cli=new Set(DB.clientes.map(c=>c.nombre)),prov=new Set(DB.proveedores.map(p=>p.nombre));
+const sf={};
+docs.forEach(x=>{const n=ter(x);const ok=x.t==="Venta"?(n==="Consumidor Final"||cli.has(n)):prov.has(n);if(!ok){const k=x.t+"\u0001"+(n||"");(sf[k]=sf[k]||{t:x.t,n:n||"(vacío)",c:0}).c++;}});
+add("Facturas","aviso","Clientes o proveedores que no existen en las fichas","El documento guarda el nombre, no un enlace. Si el nombre no coincide exactamente con la ficha, no se encuentra su cédula/RUC en búsquedas ni en la impresión, y el saldo no se asocia a la ficha.",["Tipo","Nombre en el documento","Documentos"],Object.values(sf).map(o=>[o.t,o.n,o.c]));
+const fe=[],fw=[];
+docs.forEach(x=>{(x.d.lineas||[]).forEach(l=>{if(l.pid===""||l.pid===undefined||l.pid===null)return;const p=DB.productos[+l.pid];
+if(!p)fe.push([...base(x),l.desc||"-","Apunta a un producto que ya no existe"]);
+else if(dgNz(p.nombre)!==dgNz(l.desc))fw.push([...base(x),l.desc||"-",`En esa posición está "${p.nombre}"`]);});});
+add("Facturas","error","Líneas que apuntan a un producto inexistente","Las líneas enlazan el producto por su posición en la lista. Si se borró un producto, ese enlace se rompe y el stock no se movió bien.",[...CB,"Línea","Problema"],fe);
+add("Facturas","aviso","Líneas cuyo producto tiene otro nombre","Puede ser solo una descripción editada a mano, o un enlace corrido por haber borrado un producto. Conviene revisarlas.",[...CB,"Línea","Producto enlazado"],fw);
+const dup={};
+docs.filter(x=>x.d.estado!=="anulado"&&!x.d.esSaldoInicial).forEach(x=>{const k=[x.t,dgNz(ter(x)),x.d.fecha,r2(x.d.total)].join("|");(dup[k]=dup[k]||[]).push(x);});
+add("Facturas","aviso","Posibles documentos duplicados","Mismo cliente o proveedor, misma fecha y mismo total. Puede ser legítimo.",["Tipo","Cliente / Proveedor","Fecha","Total","Documentos"],Object.values(dup).filter(a=>a.length>1).map(a=>[a[0].t,ter(a[0]),a[0].fecha,fmt(a[0].d.total),a.map(x=>dgId(x.d)).join(", ")]));
+
+// ---- Saldos iniciales
+f=[];
+[["Cliente",DB.clientes,DB.ventas,"cliente"],["Proveedor",DB.proveedores,DB.compras,"proveedor"]].forEach(([t,fichas,lista,key])=>{
+const pn={};
+lista.filter(d=>d.esSaldoInicial&&d.estado!=="anulado").forEach(d=>{(pn[d[key]]=pn[d[key]]||[]).push(d);});
+const nombres=new Set([...fichas.filter(x=>+x.saldoInicial>0).map(x=>x.nombre),...Object.keys(pn)]);
+nombres.forEach(n=>{
+const fi=fichas.find(x=>x.nombre===n);const ds=pn[n]||[];
+const tot=r2(ds.reduce((a,d)=>a+(+d.total||0),0));const sf2=fi?r2(+fi.saldoInicial||0):0;
+let m="";
+if(ds.length>1)m="Más de un documento de saldo inicial";
+else if(fi&&sf2>0&&!ds.length)m=fi.siGen?"La ficha dice que se generó, pero no hay documento":"Saldo escrito en la ficha sin generar: no está en CxC/CxP";
+else if(ds.length&&!fi)m="Hay documento de saldo inicial pero no existe la ficha";
+else if(ds.length&&Math.abs(tot-sf2)>0.005)m="El monto de la ficha no coincide con el documento";
+if(m)f.push([t,n,fmt(sf2),ds.length,fmt(tot),m]);});});
+add("Saldos iniciales","aviso","Saldos iniciales: ficha frente a documento","Compara el saldo inicial escrito en cada ficha con el documento \"Saldo inicial\" que genera la app. Los saldos que se cargaron como ventas o compras normales no aparecen aquí: se ven en el resumen de saldos del final.",["Tipo","Nombre","Saldo en la ficha","Documentos de saldo inicial","Monto del documento","Problema"],f);
+
+// ---- Inventario
+const P=DB.productos;
+add("Inventario","error","Stock negativo","Se vendió más de lo que había registrado. Rompe la valoración del inventario.",["SKU","Producto","Stock"],P.filter(p=>(+p.stock||0)<0).map(p=>[p.sku||"-",p.nombre,p.stock]));
+const mov=P.map(()=>({c:0,v:0}));
+DB.compras.filter(d=>d.estado!=="anulado").forEach(d=>(d.lineas||[]).forEach(l=>{if(prodDeLinea(l))mov[+l.pid].c+=+l.qty||0;}));
+DB.ventas.filter(d=>d.estado!=="anulado").forEach(d=>(d.lineas||[]).forEach(l=>{if(prodDeLinea(l))mov[+l.pid].v+=+l.qty||0;}));
+DB.devoluciones.forEach(dv=>(dv.lineas||[]).forEach(l=>{if(!prodDeLinea(l))return;if(dv.tipo==="venta")mov[+l.pid].v-=+l.qty||0;else mov[+l.pid].c-=+l.qty||0;}));
+f=[];let valSin=0;
+P.forEach((p,i)=>{const dif=r2((+p.stock||0)-(mov[i].c-mov[i].v));if(Math.abs(dif)>0.005){if(dif>0)valSin+=dif*(+p.costo||0);f.push([p.sku||"-",p.nombre,p.stock,mov[i].c,mov[i].v,dif,dif>0?fmt(dif*(+p.costo||0)):"-"]);}});
+add("Inventario","info",`Existencias que ningún documento explica${valSin>0?` (valor al costo: ${fmt(valSin)})`:""}`,"Stock actual menos (compras - ventas, con devoluciones). Diferencia positiva: hay existencias que no vienen de ninguna compra, normalmente inventario cargado directo o ajustes; es lo que habría que valorar como inventario de apertura. Diferencia negativa: el stock es menor de lo que explican los documentos. Se enlaza por la posición del producto.",["SKU","Producto","Stock","Compras","Ventas","Diferencia","Valor de la diferencia al costo"],f);
+const skuC={};P.forEach(p=>{const k=dgNz(p.sku);if(k)(skuC[k]=skuC[k]||[]).push(p);});
+add("Inventario","aviso","Productos sin SKU o con SKU repetido","El SKU debe ser único. Sin él es difícil distinguir los productos.",["Producto","Problema"],[...P.filter(p=>!dgNz(p.sku)).map(p=>[p.nombre,"Sin SKU"]),...Object.values(skuC).filter(a=>a.length>1).flatMap(a=>a.map(p=>[p.nombre,`SKU repetido: ${p.sku}`]))]);
+add("Inventario","aviso","Productos con existencias y costo en 0","Sin costo no se puede calcular el costo de ventas ni valorar el inventario.",["SKU","Producto","Stock","Costo"],P.filter(p=>(+p.stock||0)>0&&!(+p.costo>0)).map(p=>[p.sku||"-",p.nombre,p.stock,fmt(p.costo||0)]));
+
+// ---- Terceros
+f=[];
+[["Cliente",DB.clientes],["Proveedor",DB.proveedores]].forEach(([t,L])=>{
+const bn={},br={};
+L.forEach(x=>{const n=dgNz(x.nombre);if(n)(bn[n]=bn[n]||[]).push(x);const r=String(x.ruc||"").trim();if(r)(br[r]=br[r]||[]).push(x);});
+Object.values(bn).filter(a=>a.length>1).forEach(a=>f.push([t,"Mismo nombre",a.map(x=>x.nombre).join(" / "),a.length]));
+Object.entries(br).filter(([,a])=>a.length>1).forEach(([r,a])=>f.push([t,`Misma cédula/RUC ${r}`,a.map(x=>x.nombre).join(" / "),a.length]));});
+add("Clientes y proveedores","aviso","Fichas duplicadas","Dos fichas para la misma persona dividen sus saldos y su historial.",["Tipo","Criterio","Fichas","Cantidad"],f);
+
+// ---- Devoluciones y saldo a favor
+const idsV=new Set(DB.ventas.map(d=>d.id)),idsC=new Set(DB.compras.map(d=>d.id));
+f=[];
+DB.devoluciones.forEach(v=>{let m="";
+if(!(v.tipo==="venta"?idsV:idsC).has(v.docId))m="El documento original no existe";
+else if(Math.abs(r2((v.lineas||[]).reduce((a,l)=>a+(+l.qty||0)*(+(v.tipo==="venta"?l.pu:l.costo)||0),0))-r2(v.total))>0.015)m="El total no coincide con sus líneas";
+if(m)f.push([v.tipo==="venta"?"Venta":"Compra",dgId(v),v.fecha||"-",v.tercero||"-",fmt(v.total),m]);});
+add("Devoluciones y saldo a favor","error","Devoluciones con problemas","",["Tipo","Doc.","Fecha","Cliente / Proveedor","Total","Problema"],f);
+f=[];
+DB.creditos.forEach(c=>{let m="";
+if((+c.saldo||0)<-0.005)m="Saldo negativo";
+else if(c.estado==="agotado"&&(+c.saldo||0)>0.005)m="Agotado con saldo mayor que 0";
+else if(c.estado==="vigente"&&(+c.saldo||0)<=0.005)m="Vigente con saldo 0";
+if(m)f.push([c.tipo,c.tercero,fmt(c.monto),fmt(c.saldo),c.estado||"-",m]);});
+add("Devoluciones y saldo a favor","error","Saldos a favor con problemas","",["Tipo","Tercero","Monto","Saldo","Estado","Problema"],f);
+return out;
+}
+function diagResumen(){
+const mk=(lista,key)=>{const m={};
+lista.filter(d=>d.estado==="pendiente").forEach(d=>{const n=d[key]||"(vacío)";const o=m[n]=m[n]||{docs:0,si:0,otros:0};o.docs++;if(d.esSaldoInicial)o.si+=+d.saldo||0;else o.otros+=+d.saldo||0;});
+return Object.entries(m).map(([n,o])=>({n,docs:o.docs,si:r2(o.si),otros:r2(o.otros),tot:r2(o.si+o.otros)})).sort((a,b)=>b.tot-a.tot);};
+return{cxc:mk(DB.ventas,"cliente"),cxp:mk(DB.compras,"proveedor")};
+}
+function rDIAG(){
+const cks=diagnostico();const res=diagResumen();
+const nv={error:["Error",C.red],aviso:["Aviso",C.yel],info:["Info",C.blue]};
+const con=cks.filter(c=>c.filas.length);const sin=cks.filter(c=>!c.filas.length);
+const cnt=n=>con.filter(c=>c.nivel===n).length;
+const grupos=["Facturas","Saldos iniciales","Inventario","Clientes y proveedores","Devoluciones y saldo a favor"];
+const CAP=200;
+const bloque=con.length?grupos.map(g=>{
+const L=con.filter(c=>c.grupo===g);
+if(!L.length)return"";
+return`<div class="h2" style="margin-top:6px">${g}</div>`+L.map(c=>`<div class="card"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px"><b>${h(c.titulo)}</b>${bdg(nv[c.nivel][0],nv[c.nivel][1])}${bdg(c.filas.length+(c.filas.length===1?" hallazgo":" hallazgos"),C.muted)}</div>
+${c.ayuda?`<div style="font-size:12px;color:${C.muted};margin-bottom:8px">${h(c.ayuda)}</div>`:""}
+<div class="ov"><table><thead><tr>${c.cols.map(x=>`<th>${h(x)}</th>`).join("")}</tr></thead><tbody>${c.filas.slice(0,CAP).map(r=>`<tr>${r.map(v=>`<td>${h(v)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+${c.filas.length>CAP?`<div style="font-size:12px;color:${C.muted};margin-top:6px">Se muestran los primeros ${CAP} de ${c.filas.length}.</div>`:""}</div>`).join("");
+}).join(""):`<div class="card empty">✅ No se encontró ningún hallazgo</div>`;
+const tabla=(t,L,col)=>`<div class="card"><div class="h2" style="margin-bottom:6px">${t}</div><div class="ov"><table><thead><tr><th>${col}</th><th>Facturas pendientes</th><th>Saldo inicial</th><th>Otras facturas</th><th>Total pendiente</th></tr></thead><tbody>${L.map(o=>`<tr><td>${h(o.n)}</td><td>${o.docs}</td><td>${fmt(o.si)}</td><td>${fmt(o.otros)}</td><td style="font-weight:600">${fmt(o.tot)}</td></tr>`).join("")||`<tr><td colspan="5" class="empty">Sin saldos pendientes</td></tr>`}${L.length?`<tr><td><b>TOTAL</b></td><td>${L.reduce((a,o)=>a+o.docs,0)}</td><td>${fmt(r2(L.reduce((a,o)=>a+o.si,0)))}</td><td>${fmt(r2(L.reduce((a,o)=>a+o.otros,0)))}</td><td style="font-weight:700">${fmt(r2(L.reduce((a,o)=>a+o.tot,0)))}</td></tr>`:""}</tbody></table></div></div>`;
+return`<div class="h2">🩺 Diagnóstico de datos</div>
+<div class="grid2" style="margin-bottom:14px">${sc("Errores",cnt("error"),cnt("error")?C.red:C.green)}${sc("Avisos",cnt("aviso"),cnt("aviso")?C.yel:C.green)}${sc("Información",cnt("info"),C.blue)}${sc("Revisiones sin hallazgos",sin.length,C.green)}</div>
+${bloque}
+<div class="h2" style="margin-top:6px">Resumen de saldos pendientes</div>
+<div style="font-size:12px;color:${C.muted};margin-bottom:8px">Para comparar con tus registros. "Saldo inicial" son los documentos marcados como saldo inicial; "Otras facturas" incluye lo que se cargó como venta o compra normal.</div>
+${tabla("Por cobrar, por cliente",res.cxc,"Cliente")}${tabla("Por pagar, por proveedor",res.cxp,"Proveedor")}
+${sin.length?`<div class="card"><div class="h2" style="margin-bottom:6px">Revisiones sin hallazgos</div>${sin.map(c=>`<div style="font-size:13px;margin-bottom:3px">✓ ${h(c.titulo)}</div>`).join("")}</div>`:""}`;
+}
+
+/* ═══ COBROS Y PAGOS (dinero efectivo) ═══ */
+const cbSum=L=>r2(L.reduce((a,x)=>a+x.monto,0));
+function movCaja(desde,hasta){
+const en=f=>!!f&&f>=desde&&f<=hasta;
+const id6=id=>"#"+String(id||"").slice(-6).toUpperCase();
+const cob=[],pag=[];
+DB.ventas.forEach(d=>{
+if(d.fp==="contado"&&d.estado!=="anulado"&&en(d.fecha))cob.push({fecha:d.fecha,conc:"contado",tipo:"Venta de contado",tercero:d.cliente,doc:id6(d.id),forma:"contado",monto:+d.total||0,usuario:d.usuario||""});
+(d.pagos||[]).forEach(p=>{if(p.forma==="saldo a favor"||!en(p.fecha))return;cob.push({fecha:p.fecha,conc:d.esSaldoInicial?"saldo":"cartera",tipo:d.esSaldoInicial?"Cobro de saldo inicial":"Cobro CxC",tercero:d.cliente,doc:id6(d.id),forma:p.forma||"-",monto:+p.monto||0,usuario:p.usuario||""});});
+});
+DB.devoluciones.filter(v=>v.tipo==="venta"&&(+v.reembolso||0)>0&&en(v.fecha)).forEach(v=>cob.push({fecha:v.fecha,conc:"devolucion",tipo:"Reembolso por devolución",tercero:v.tercero,doc:id6(v.docId),forma:v.forma||"-",monto:-(+v.reembolso),usuario:v.usuario||""}));
+DB.compras.forEach(d=>{
+if(d.fp==="contado"&&d.estado!=="anulado"&&en(d.fecha))pag.push({fecha:d.fecha,conc:"contado",tipo:"Compra de contado",tercero:d.proveedor,doc:id6(d.id),forma:"contado",monto:+d.total||0,usuario:d.usuario||""});
+(d.pagos||[]).forEach(p=>{if(p.forma==="saldo a favor"||!en(p.fecha))return;pag.push({fecha:p.fecha,conc:d.esSaldoInicial?"saldo":"cartera",tipo:d.esSaldoInicial?"Pago de saldo inicial":"Pago CxP",tercero:d.proveedor,doc:id6(d.id),forma:p.forma||"-",monto:+p.monto||0,usuario:p.usuario||""});});
+});
+DB.devoluciones.filter(v=>v.tipo==="compra"&&(+v.reembolso||0)>0&&en(v.fecha)).forEach(v=>pag.push({fecha:v.fecha,conc:"devolucion",tipo:"Dinero recuperado del proveedor",tercero:v.tercero,doc:id6(v.docId),forma:v.forma||"-",monto:-(+v.reembolso),usuario:v.usuario||""}));
+const ord=(a,b)=>String(a.fecha).localeCompare(String(b.fecha))||a.doc.localeCompare(b.doc);
+cob.sort(ord);pag.sort(ord);
+return{cob,pag};
+}
+function rCOB(){
+const {cob,pag}=movCaja(ST.rD,ST.rH);
+const tc=cbSum(cob),tp=cbSum(pag),neto=r2(tc-tp);
+const conceptos=[["contado","Ventas y compras de contado"],["cartera","Cobros y pagos de CxC y CxP"],["saldo","Saldos iniciales cobrados y pagados"],["devolucion","Reembolsos y recuperos por devolución"]];
+const por=(L,k,v)=>cbSum(L.filter(x=>x[k]===v));
+const filasConc=conceptos.map(([k,l])=>`<tr><td>${l}</td><td style="text-align:right">${fmt(por(cob,"conc",k))}</td><td style="text-align:right">${fmt(por(pag,"conc",k))}</td></tr>`).join("");
+const orden=["contado","efectivo","transferencia","tarjeta","cheque","otro"];
+const formas=[...new Set([...cob,...pag].map(x=>x.forma))].sort((a,b)=>{const ia=orden.indexOf(a),ib=orden.indexOf(b);return(ia<0?99:ia)-(ib<0?99:ib)||String(a).localeCompare(String(b));});
+const filasForma=formas.map(f=>{const c=por(cob,"forma",f),p=por(pag,"forma",f);return`<tr><td style="text-transform:capitalize">${f==="contado"?"Contado (al registrar el documento)":h(f)}</td><td style="text-align:right">${fmt(c)}</td><td style="text-align:right">${fmt(p)}</td><td style="text-align:right;color:${r2(c-p)>=0?C.green:C.red};font-weight:600">${fmt(r2(c-p))}</td></tr>`;}).join("");
+const dias=[...new Set([...cob,...pag].map(x=>x.fecha))].sort();
+let acum=0;
+const filasDia=dias.map(f=>{const c=por(cob,"fecha",f),p=por(pag,"fecha",f);acum=r2(acum+c-p);return`<tr><td>${f}</td><td style="text-align:right">${fmt(c)}</td><td style="text-align:right">${fmt(p)}</td><td style="text-align:right;color:${r2(c-p)>=0?C.green:C.red};font-weight:600">${fmt(r2(c-p))}</td><td style="text-align:right;font-weight:700;color:${acum>=0?C.green:C.red}">${fmt(acum)}</td></tr>`;}).join("");
+const det=(t,L,col,total)=>`<div class="card"><div class="h2" style="margin-bottom:6px">${t}</div><div class="ov"><table><thead><tr><th>Fecha</th><th>Concepto</th><th>${col}</th><th>Doc.</th><th>Forma</th><th style="text-align:right">Monto</th><th>Usuario</th></tr></thead><tbody>${L.map(x=>`<tr><td>${h(x.fecha)}</td><td>${h(x.tipo)}</td><td>${h(x.tercero||"-")}</td><td style="font-size:11px;color:${C.muted}">${h(x.doc)}</td><td>${h(x.forma)}</td><td style="text-align:right;font-weight:600;color:${x.monto<0?C.red:C.green}">${fmt(x.monto)}</td><td style="font-size:11px;color:${C.muted}">${h(x.usuario||"-")}</td></tr>`).join("")||`<tr><td colspan="7" class="empty">Sin movimientos en el rango</td></tr>`}${L.length?`<tr><td colspan="5"><b>TOTAL</b></td><td style="text-align:right;font-weight:700">${fmt(total)}</td><td></td></tr>`:""}</tbody></table></div></div>`;
+return`<div class="h2">💰 Cobros y Pagos</div>
+<div style="font-size:12px;color:${C.muted};margin-bottom:10px">Dinero que realmente entró y salió entre ${h(ST.rD)} y ${h(ST.rH)}. Las ventas y compras de contado se cuentan el día del documento; las de crédito, transferencia o tarjeta, el día en que se registró el cobro o el pago. Los abonos con saldo a favor no son dinero y no se incluyen. Los reembolsos por devolución restan.</div>
+<div class="grid2" style="margin-bottom:14px">${sc("Cobrado",fmt(tc),C.green)}${sc("Pagado",fmt(tp),C.red)}${sc("Diferencia (cobrado - pagado)",fmt(neto),neto>=0?C.green:C.red)}${sc("Movimientos",cob.length+pag.length,C.acc)}</div>
+<div class="card"><div class="h2" style="margin-bottom:6px">Por concepto</div><div class="ov"><table><thead><tr><th>Concepto</th><th style="text-align:right">Cobrado</th><th style="text-align:right">Pagado</th></tr></thead><tbody>${filasConc}<tr><td><b>TOTAL</b></td><td style="text-align:right;font-weight:700">${fmt(tc)}</td><td style="text-align:right;font-weight:700">${fmt(tp)}</td></tr></tbody></table></div></div>
+<div class="card"><div class="h2" style="margin-bottom:6px">Por forma de pago</div><div class="ov"><table><thead><tr><th>Forma</th><th style="text-align:right">Cobrado</th><th style="text-align:right">Pagado</th><th style="text-align:right">Diferencia</th></tr></thead><tbody>${filasForma||`<tr><td colspan="4" class="empty">Sin movimientos en el rango</td></tr>`}</tbody></table></div></div>
+<div class="card"><div class="h2" style="margin-bottom:6px">Resumen por día</div><div class="ov"><table><thead><tr><th>Fecha</th><th style="text-align:right">Cobrado</th><th style="text-align:right">Pagado</th><th style="text-align:right">Diferencia</th><th style="text-align:right">Acumulado</th></tr></thead><tbody>${filasDia||`<tr><td colspan="5" class="empty">Sin movimientos en el rango</td></tr>`}</tbody></table></div></div>
+${det("Detalle de cobros",cob,"Cliente",tc)}${det("Detalle de pagos",pag,"Proveedor",tp)}`;
 }
 </script>
 </body>
