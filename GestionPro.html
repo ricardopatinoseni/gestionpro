@@ -127,7 +127,8 @@ const auth=firebase.auth();
 const db=firebase.firestore();
 const C={bg:"#0f172a",card:"#1e293b",brd:"#334155",acc:"#6366f1",acc2:"#818cf8",txt:"#f1f5f9",muted:"#94a3b8",green:"#22c55e",red:"#ef4444",yel:"#f59e0b",blue:"#38bdf8"};
 const fmt=n=>`$${Number(n).toFixed(2)}`;
-const tod=()=>new Date().toISOString().split("T")[0];
+const ymd=d=>new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().split("T")[0];
+const tod=()=>ymd(new Date());
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const h=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 const sc=(l,v,c)=>`<div class="stat-card" style="border-left-color:${c}"><div class="stat-lbl">${l}</div><div class="stat-val" style="color:${c}">${v}</div></div>`;
@@ -135,10 +136,10 @@ const bx=(l,c,fn,ex="")=>`<button onclick="${fn}" style="background:${c};color:#
 const bdg=(t,c)=>`<span class="badge" style="background:${c}22;color:${c}">${h(String(t))}</span>`;
 const estColor=e=>e==="pagado"?C.green:e==="anulado"?C.muted:(e==="devuelta"||e==="devolución")?C.blue:C.yel;
 const puedeModificar=x=>x.estado==="pendiente"&&!(x.devuelto>0);
-function defDesde(){const d=new Date();d.setDate(1);return d.toISOString().split("T")[0];}
+function defDesde(){const d=new Date();d.setDate(1);return ymd(d);}
 
 let CU=null;
-let ST={tab:"Dashboard",menu:false,sub:"dv",rD:defDesde(),rH:tod(),cxcIdx:-1,cxpIdx:-1,roLinea:""};
+let ST={tab:"Dashboard",menu:false,sub:"dv",rD:defDesde(),rH:tod(),rHauto:true,cxcIdx:-1,cxpIdx:-1,roLinea:""};
 let DB={productos:[],clientes:[],proveedores:[],ventas:[],compras:[],devoluciones:[],creditos:[]};
 let VF={fecha:tod(),cliente:"",clienteIdx:-1,fp:"contado",vence:"",lns:[{id:uid(),pid:"",desc:"",qty:1,pu:0}]};
 let CF={fecha:tod(),proveedor:"",proveedorIdx:-1,fp:"contado",vence:"",lns:[{id:uid(),pid:"",desc:"",qty:1,costo:0}]};
@@ -1135,15 +1136,15 @@ catch(e){alert("Error: "+e.message);}
 /* ════════════════════════
    REPORTES
    ════════════════════════ */
-const SUBS=[{k:"dv",l:"📋 Diario Ventas"},{k:"vc",l:"👥 Ventas x Cliente"},{k:"vp",l:"📦 Ventas x Producto"},{k:"rpc",l:"🔗 Prod-Cliente"},{k:"dc",l:"📋 Diario Compras"},{k:"cp",l:"🏭 Compras x Prov."},{k:"er",l:"📈 Estado Result."},{k:"fc",l:"💵 Flujo Caja"},{k:"cob",l:"💰 Cobros y Pagos"},{k:"ca",l:"📅 Cartera"},{k:"ro",l:"🔄 Rotación"},{k:"fp",l:"💳 Formas Pago"},{k:"rc",l:"👤 Rep. Cliente"},{k:"inv",l:"📦 Inventario"},{k:"dev",l:"↩ Devoluciones"},{k:"diag",l:"🩺 Diagnóstico"}];
-function buildRep(){
+const SUBS=[{k:"dv",l:"📋 Diario Ventas"},{k:"vc",l:"👥 Ventas x Cliente"},{k:"vp",l:"📦 Ventas x Producto"},{k:"rpc",l:"🔗 Prod-Cliente"},{k:"dc",l:"📋 Diario Compras"},{k:"cp",l:"🏭 Compras x Prov."},{k:"er",l:"📈 Estado Result."},{k:"fc",l:"💵 Flujo Caja"},{k:"cob",l:"💰 Cobros y Pagos"},{k:"cobros",l:"📥 Cobros realizados"},{k:"pagos",l:"📤 Pagos realizados"},{k:"ca",l:"📅 Cartera"},{k:"ro",l:"🔄 Rotación"},{k:"fp",l:"💳 Formas Pago"},{k:"rc",l:"👤 Rep. Cliente"},{k:"inv",l:"📦 Inventario"},{k:"dev",l:"↩ Devoluciones"},{k:"diag",l:"🩺 Diagnóstico"}];
+function buildRep(){if(ST.rHauto)ST.rH=tod();
 const tabs=SUBS.map(s=>`<button onclick="ST.sub='${s.k}';R()" style="background:${ST.sub===s.k?"#6366f1":"#1e293b"};color:${ST.sub===s.k?"#fff":"#94a3b8"};border:1px solid #334155;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600">${s.l}</button>`).join("");
 const filtro=`<div class="card" style="margin-bottom:14px"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
 <div><label class="lbl">Desde</label><input type="date" value="${ST.rD}" onchange="ST.rD=this.value;R()" style="width:140px"></div>
-<div><label class="lbl">Hasta</label><input type="date" value="${ST.rH}" onchange="ST.rH=this.value;R()" style="width:140px"></div>
-<button onclick="ST.rD='${defDesde()}';ST.rH='${tod()}';R()" style="background:#94a3b8;color:#fff;border:none;border-radius:6px;padding:7px 12px;cursor:pointer;font-size:12px;font-weight:600">Este mes</button>
-<button onclick="ST.rD='${new Date(Date.now()-6*86400000).toISOString().split('T')[0]}';ST.rH='${tod()}';R()" style="background:#94a3b8;color:#fff;border:none;border-radius:6px;padding:7px 12px;cursor:pointer;font-size:12px;font-weight:600">7 días</button>
-<button onclick="ST.rD='2000-01-01';ST.rH='${tod()}';R()" style="background:#94a3b8;color:#fff;border:none;border-radius:6px;padding:7px 12px;cursor:pointer;font-size:12px;font-weight:600">Todo</button>
+<div><label class="lbl">Hasta</label><input type="date" value="${ST.rH}" onchange="ST.rH=this.value;ST.rHauto=false;R()" style="width:140px"></div>
+<button onclick="ST.rD='${defDesde()}';ST.rH='${tod()}';ST.rHauto=true;R()" style="background:#94a3b8;color:#fff;border:none;border-radius:6px;padding:7px 12px;cursor:pointer;font-size:12px;font-weight:600">Este mes</button>
+<button onclick="ST.rD='${ymd(new Date(Date.now()-6*86400000))}';ST.rH='${tod()}';ST.rHauto=true;R()" style="background:#94a3b8;color:#fff;border:none;border-radius:6px;padding:7px 12px;cursor:pointer;font-size:12px;font-weight:600">7 días</button>
+<button onclick="ST.rD='2000-01-01';ST.rH='${tod()}';ST.rHauto=true;R()" style="background:#94a3b8;color:#fff;border:none;border-radius:6px;padding:7px 12px;cursor:pointer;font-size:12px;font-weight:600">Todo</button>
 ${bx("🖨 Imprimir / PDF",C.acc,"printReporte()","margin-left:auto")}
 </div></div>`;
 const V=DB.ventas.filter(v=>v.fecha>=ST.rD&&v.fecha<=ST.rH&&v.estado!=="anulado"&&!v.esSaldoInicial).concat(devPseudo("venta").filter(d=>d.fecha>=ST.rD&&d.fecha<=ST.rH));
@@ -1153,7 +1154,7 @@ if(ST.sub==="dv")body=rDV(V);else if(ST.sub==="vc")body=rVC(V);else if(ST.sub===
 else if(ST.sub==="rpc")body=rRPC(V);else if(ST.sub==="dc")body=rDC(K);else if(ST.sub==="cp")body=rCP(K);
 else if(ST.sub==="er")body=rER(V,K);else if(ST.sub==="fc")body=rFC(V,K);else if(ST.sub==="ca")body=rCA();
 else if(ST.sub==="ro")body=rRO(V);else if(ST.sub==="fp")body=rFP(V);else if(ST.sub==="rc")body=rRC(V);
-else if(ST.sub==="inv")body=rINV();else if(ST.sub==="dev")body=rDEV();else if(ST.sub==="diag")body=rDIAG();else if(ST.sub==="cob")body=rCOB();
+else if(ST.sub==="inv")body=rINV();else if(ST.sub==="dev")body=rDEV();else if(ST.sub==="diag")body=rDIAG();else if(ST.sub==="cob")body=rCOB();else if(ST.sub==="cobros")body=rMOV("cobros");else if(ST.sub==="pagos")body=rMOV("pagos");
 const filtroDiag=`<div class="card" style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:12px;color:${C.muted}">Revisa todos los datos tal como están hoy. Solo lectura: no modifica nada.</span>${bx("🖨 Imprimir / PDF",C.acc,"printReporte()")}</div>`;
 return`<div class="sub-tabs">${tabs}</div>${ST.sub==="diag"?filtroDiag:filtro}<div id="rep-body">${body}</div>`;
 }
@@ -1791,6 +1792,54 @@ return`<div class="h2">💰 Cobros y Pagos</div>
 <div class="card"><div class="h2" style="margin-bottom:6px">Por forma de pago</div><div class="ov"><table><thead><tr><th>Forma</th><th style="text-align:right">Cobrado</th><th style="text-align:right">Pagado</th><th style="text-align:right">Diferencia</th></tr></thead><tbody>${filasForma||`<tr><td colspan="4" class="empty">Sin movimientos en el rango</td></tr>`}</tbody></table></div></div>
 <div class="card"><div class="h2" style="margin-bottom:6px">Resumen por día</div><div class="ov"><table><thead><tr><th>Fecha</th><th style="text-align:right">Cobrado</th><th style="text-align:right">Pagado</th><th style="text-align:right">Diferencia</th><th style="text-align:right">Acumulado</th></tr></thead><tbody>${filasDia||`<tr><td colspan="5" class="empty">Sin movimientos en el rango</td></tr>`}</tbody></table></div></div>
 ${det("Detalle de cobros",cob,"Cliente",tc)}${det("Detalle de pagos",pag,"Proveedor",tp)}`;
+}
+
+/* ═══ COBROS REALIZADOS / PAGOS REALIZADOS ═══ */
+const MOVF={cobros:"todos",pagos:"todos"};
+function movSinFecha(){
+const ok=f=>/^\d{4}-\d{2}-\d{2}$/.test(String(f||""))&&!isNaN(new Date(f));
+const id6=id=>"#"+String(id||"").slice(-6).toUpperCase();
+const c=[],p=[];
+const rec=(lista,out,ter,tc,tp,ts)=>lista.forEach(d=>{
+if(d.fp==="contado"&&d.estado!=="anulado"&&!ok(d.fecha))out.push({tipo:tc,tercero:d[ter],doc:id6(d.id),fecha:d.fecha||"(vacía)",forma:"contado",monto:+d.total||0});
+(d.pagos||[]).forEach(x=>{if(x.forma!=="saldo a favor"&&!ok(x.fecha))out.push({tipo:d.esSaldoInicial?ts:tp,tercero:d[ter],doc:id6(d.id),fecha:x.fecha||"(vacía)",forma:x.forma||"-",monto:+x.monto||0});});
+});
+rec(DB.ventas,c,"cliente","Venta de contado","Cobro CxC","Cobro de saldo inicial");
+rec(DB.compras,p,"proveedor","Compra de contado","Pago CxP","Pago de saldo inicial");
+DB.devoluciones.filter(v=>(+v.reembolso||0)>0&&!ok(v.fecha)).forEach(v=>(v.tipo==="venta"?c:p).push({tipo:v.tipo==="venta"?"Reembolso por devolución":"Dinero recuperado del proveedor",tercero:v.tercero,doc:id6(v.docId),fecha:v.fecha||"(vacía)",forma:v.forma||"-",monto:-(+v.reembolso)}));
+return{c,p};
+}
+function rMOV(k){
+const esC=k==="cobros";
+const mv=movCaja(ST.rD,ST.rH);
+const todos=esC?mv.cob:mv.pag;
+const f=MOVF[k];
+const L=(f==="todos"?todos:todos.filter(x=>x.conc===f)).slice().sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha))||b.doc.localeCompare(a.doc));
+const tot=cbSum(L);
+const opts=esC
+?[["todos","Todos los cobros"],["cartera","Cobros de CxC"],["saldo","Cobros de saldos iniciales"],["contado","Ventas de contado"],["devolucion","Reembolsos por devolución"]]
+:[["todos","Todos los pagos"],["cartera","Pagos de CxP"],["saldo","Pagos de saldos iniciales"],["contado","Compras de contado"],["devolucion","Dinero recuperado de proveedores"]];
+const etq=(opts.find(o=>o[0]===f)||opts[0])[1];
+const grp=(key)=>{const m={};L.forEach(x=>{const n=key(x)||"-";const o=m[n]=m[n]||{n:0,t:0};o.n++;o.t+=x.monto;});return Object.entries(m).map(([n,o])=>({n,c:o.n,t:r2(o.t)})).sort((a,b)=>b.t-a.t);};
+const porT=grp(x=>x.tercero);const porF=grp(x=>x.forma);
+const sf=movSinFecha()[esC?"c":"p"];
+const hint=ST.rH<tod()?`<div style="background:#f59e0b22;border:1px solid ${C.yel};border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px">El rango termina el ${h(ST.rH)} y hoy es ${h(tod())}. Para incluir los últimos días usa «Este mes» o cambia "Hasta".</div>`:"";
+const tbl=(t,cols,rows,total)=>`<div class="card"><div class="h2" style="margin-bottom:6px">${t}</div><div class="ov"><table><thead><tr>${cols.map((c,i)=>`<th${c[1]?` style="text-align:right"`:""}>${c[0]}</th>`).join("")}</tr></thead><tbody>${rows||`<tr><td colspan="${cols.length}" class="empty">Sin movimientos en el rango</td></tr>`}${total||""}</tbody></table></div></div>`;
+const filasT=porT.map(o=>`<tr><td>${h(o.n)}</td><td style="text-align:right">${o.c}</td><td style="text-align:right;font-weight:600">${fmt(o.t)}</td></tr>`).join("");
+const filasF=porF.map(o=>`<tr><td style="text-transform:capitalize">${o.n==="contado"?"Contado (al registrar el documento)":h(o.n)}</td><td style="text-align:right">${o.c}</td><td style="text-align:right;font-weight:600">${fmt(o.t)}</td></tr>`).join("");
+const filasD=L.map(x=>`<tr><td>${h(x.fecha)}</td><td>${h(x.tipo)}</td><td>${h(x.tercero||"-")}</td><td style="font-size:11px;color:${C.muted}">${h(x.doc)}</td><td>${h(x.forma)}</td><td style="text-align:right;font-weight:600;color:${x.monto<0?C.red:C.green}">${fmt(x.monto)}</td><td style="font-size:11px;color:${C.muted}">${h(x.usuario||"-")}</td></tr>`).join("");
+const bloqueSF=sf.length?`<div class="card" style="border-color:${C.yel}"><div class="h2" style="margin-bottom:4px;color:${C.yel}">Movimientos que no entran en ningún rango por tener fecha inválida (${sf.length})</div><div style="font-size:12px;color:${C.muted};margin-bottom:8px">Su fecha está vacía o no tiene formato AAAA-MM-DD, por eso no aparecen en los reportes por fechas. Se corrige en Firebase, en el campo fecha del cobro o pago.</div><div class="ov"><table><thead><tr><th>Concepto</th><th>${esC?"Cliente":"Proveedor"}</th><th>Doc.</th><th>Fecha guardada</th><th>Forma</th><th style="text-align:right">Monto</th></tr></thead><tbody>${sf.map(x=>`<tr><td>${h(x.tipo)}</td><td>${h(x.tercero||"-")}</td><td>${h(x.doc)}</td><td>${h(x.fecha)}</td><td>${h(x.forma)}</td><td style="text-align:right">${fmt(x.monto)}</td></tr>`).join("")}</tbody></table></div></div>`:"";
+return`<div class="h2">${esC?"📥 Cobros realizados":"📤 Pagos realizados"}</div>
+<div style="font-size:12px;color:${C.muted};margin-bottom:8px">Del ${h(ST.rD)} al ${h(ST.rH)}. Cuenta el dinero el día en que se registró el ${esC?"cobro":"pago"}; las ${esC?"ventas":"compras"} de contado, el día del documento. Los abonos con saldo a favor no son dinero y no se incluyen.</div>
+${hint}
+<div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">
+<div><label class="lbl">Concepto</label><select onchange="MOVF.${k}=this.value;R()" style="width:260px">${opts.map(o=>`<option value="${o[0]}"${f===o[0]?" selected":""}>${o[1]}</option>`).join("")}</select></div>
+<span style="font-size:12px;color:${C.muted}">Mostrando: ${h(etq)}</span></div>
+<div class="grid2" style="margin-bottom:14px">${sc(esC?"Total cobrado":"Total pagado",fmt(tot),esC?C.green:C.red)}${sc("Movimientos",L.length,C.acc)}${sc(esC?"De saldos iniciales":"De saldos iniciales",fmt(cbSum(todos.filter(x=>x.conc==="saldo"))),C.blue)}${sc(esC?"De CxC":"De CxP",fmt(cbSum(todos.filter(x=>x.conc==="cartera"))),C.yel)}</div>
+${tbl(esC?"Por cliente":"Por proveedor",[[esC?"Cliente":"Proveedor"],["Movimientos",1],["Total",1]],filasT,L.length?`<tr><td><b>TOTAL</b></td><td style="text-align:right">${L.length}</td><td style="text-align:right;font-weight:700">${fmt(tot)}</td></tr>`:"")}
+${tbl("Por forma de pago",[["Forma"],["Movimientos",1],["Total",1]],filasF)}
+${tbl("Detalle (del más reciente al más antiguo)",[["Fecha"],["Concepto"],[esC?"Cliente":"Proveedor"],["Doc."],["Forma"],["Monto",1],["Usuario"]],filasD,L.length?`<tr><td colspan="5"><b>TOTAL</b></td><td style="text-align:right;font-weight:700">${fmt(tot)}</td><td></td></tr>`:"")}
+${bloqueSF}`;
 }
 </script>
 </body>
