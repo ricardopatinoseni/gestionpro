@@ -1136,7 +1136,7 @@ catch(e){alert("Error: "+e.message);}
 /* ════════════════════════
    REPORTES
    ════════════════════════ */
-const SUBS=[{k:"dv",l:"📋 Diario Ventas"},{k:"vc",l:"👥 Ventas x Cliente"},{k:"vp",l:"📦 Ventas x Producto"},{k:"rpc",l:"🔗 Prod-Cliente"},{k:"dc",l:"📋 Diario Compras"},{k:"cp",l:"🏭 Compras x Prov."},{k:"er",l:"📈 Estado Result."},{k:"fc",l:"💵 Flujo Caja"},{k:"cob",l:"💰 Cobros y Pagos"},{k:"cobros",l:"📥 Cobros realizados"},{k:"pagos",l:"📤 Pagos realizados"},{k:"ca",l:"📅 Cartera"},{k:"ro",l:"🔄 Rotación"},{k:"fp",l:"💳 Formas Pago"},{k:"rc",l:"👤 Rep. Cliente"},{k:"inv",l:"📦 Inventario"},{k:"dev",l:"↩ Devoluciones"},{k:"diag",l:"🩺 Diagnóstico"}];
+const SUBS=[{k:"dv",l:"📋 Diario Ventas"},{k:"vc",l:"👥 Ventas x Cliente"},{k:"vp",l:"📦 Ventas x Producto"},{k:"rpc",l:"🔗 Prod-Cliente"},{k:"dc",l:"📋 Diario Compras"},{k:"cp",l:"🏭 Compras x Prov."},{k:"er",l:"📈 Estado Result."},{k:"fc",l:"💵 Flujo Caja"},{k:"cob",l:"💰 Cobros y Pagos"},{k:"cobros",l:"📥 Cobros realizados"},{k:"pagos",l:"📤 Pagos realizados"},{k:"ca",l:"📅 Cartera"},{k:"sxc",l:"💳 Saldos por cobrar"},{k:"ro",l:"🔄 Rotación"},{k:"fp",l:"💳 Formas Pago"},{k:"rc",l:"👤 Rep. Cliente"},{k:"inv",l:"📦 Inventario"},{k:"dev",l:"↩ Devoluciones"},{k:"diag",l:"🩺 Diagnóstico"}];
 function buildRep(){if(ST.rHauto)ST.rH=tod();
 const tabs=SUBS.map(s=>`<button onclick="ST.sub='${s.k}';R()" style="background:${ST.sub===s.k?"#6366f1":"#1e293b"};color:${ST.sub===s.k?"#fff":"#94a3b8"};border:1px solid #334155;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600">${s.l}</button>`).join("");
 const filtro=`<div class="card" style="margin-bottom:14px"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
@@ -1154,9 +1154,9 @@ if(ST.sub==="dv")body=rDV(V);else if(ST.sub==="vc")body=rVC(V);else if(ST.sub===
 else if(ST.sub==="rpc")body=rRPC(V);else if(ST.sub==="dc")body=rDC(K);else if(ST.sub==="cp")body=rCP(K);
 else if(ST.sub==="er")body=rER(V,K);else if(ST.sub==="fc")body=rFC(V,K);else if(ST.sub==="ca")body=rCA();
 else if(ST.sub==="ro")body=rRO(V);else if(ST.sub==="fp")body=rFP(V);else if(ST.sub==="rc")body=rRC(V);
-else if(ST.sub==="inv")body=rINV();else if(ST.sub==="dev")body=rDEV();else if(ST.sub==="diag")body=rDIAG();else if(ST.sub==="cob")body=rCOB();else if(ST.sub==="cobros")body=rMOV("cobros");else if(ST.sub==="pagos")body=rMOV("pagos");
+else if(ST.sub==="inv")body=rINV();else if(ST.sub==="dev")body=rDEV();else if(ST.sub==="diag")body=rDIAG();else if(ST.sub==="sxc")body=rSXC();else if(ST.sub==="cob")body=rCOB();else if(ST.sub==="cobros")body=rMOV("cobros");else if(ST.sub==="pagos")body=rMOV("pagos");
 const filtroDiag=`<div class="card" style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:12px;color:${C.muted}">Revisa todos los datos tal como están hoy. Solo lectura: no modifica nada.</span>${bx("🖨 Imprimir / PDF",C.acc,"printReporte()")}</div>`;
-return`<div class="sub-tabs">${tabs}</div>${ST.sub==="diag"?filtroDiag:filtro}<div id="rep-body">${body}</div>`;
+return`<div class="sub-tabs">${tabs}</div>${(ST.sub==="diag"||ST.sub==="sxc")?filtroDiag:filtro}<div id="rep-body">${body}</div>`;
 }
 function rDV(V){const pf={};V.forEach(v=>{if(!pf[v.fecha])pf[v.fecha]={vs:[],t:0};pf[v.fecha].vs.push(v);pf[v.fecha].t+=v.total;});const f=Object.keys(pf).sort().reverse();return`<div class="h2">📋 Diario de Ventas</div><div class="grid2" style="margin-bottom:14px">${sc("Facturas",V.filter(v=>!v.esDevolucion).length,C.acc)}${sc("Total",fmt(V.reduce((a,v)=>a+v.total,0)),C.green)}</div>${f.map(d=>`<div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><b style="color:${C.acc2}">${d}</b><b style="color:${C.green}">${fmt(pf[d].t)}</b></div><div class="ov"><table><thead><tr><th>#</th><th>Cliente</th><th>Forma</th><th>Total</th><th>Estado</th><th>Usuario</th></tr></thead><tbody>${pf[d].vs.map(v=>`<tr><td style="font-size:11px;color:${C.muted}">#${v.id.slice(-6).toUpperCase()}</td><td>${h(v.cliente)}</td><td>${v.fp}</td><td style="color:${C.green};font-weight:600">${fmt(v.total)}</td><td>${bdg(v.estado,estColor(v.estado))}</td><td style="font-size:11px;color:${C.muted}">${v.usuario||"-"}</td></tr>`).join("")}</tbody></table></div></div>`).join("")||`<div class="card empty">Sin ventas en el rango</div>`}`;}
 function rVC(V){const m={};V.forEach(v=>{if(!m[v.cliente])m[v.cliente]={n:0,t:0};if(!v.esDevolucion)m[v.cliente].n++;m[v.cliente].t+=v.total;});const lista=Object.entries(m).sort((a,b)=>b[1].t-a[1].t);const gt=V.reduce((a,v)=>a+v.total,0);const rows=lista.map(([c,d])=>{const p=gt>0?((d.t/gt)*100).toFixed(1):0;return`<tr><td><b>${h(c)}</b></td><td>${d.n}</td><td style="color:${C.green};font-weight:700">${fmt(d.t)}</td><td><div style="display:flex;align-items:center;gap:6px"><div style="background:#334155;border-radius:4px;height:6px;width:80px"><div style="width:${p}%;background:${C.green};height:6px;border-radius:4px"></div></div><span style="font-size:11px">${p}%</span></div></td></tr>`;}).join("");return`<div class="h2">👥 Ventas por Cliente</div><div class="card"><div class="ov"><table><thead><tr><th>Cliente</th><th>Fact.</th><th>Total</th><th>%</th></tr></thead><tbody>${rows||`<tr><td colspan="4" class="empty">Sin datos</td></tr>`}${lista.length?`<tr style="background:${C.bg}"><td style="font-weight:700">TOTAL</td><td>${V.length}</td><td style="color:${C.green};font-weight:700">${fmt(gt)}</td><td>100%</td></tr>`:""}</tbody></table></div></div>`;}
@@ -1361,10 +1361,10 @@ const sb=SUBS.find(x=>x.k===ST.sub);
 const nombre=sb?sb.l.replace(/^[^A-Za-zÁ-ú0-9]+/,""):"Reporte";
 let sub=`Del ${ST.rD} al ${ST.rH}`;
 if(ST.sub==="ca")sub=`Cartera al ${tod()}`;
-else if(ST.sub==="inv")sub=`Existencias al ${tod()}`;
+else if(ST.sub==="inv")sub=`Existencias al ${tod()}`;else if(ST.sub==="sxc")sub=`Saldos al ${tod()}`;
 else if(ST.sub==="diag")sub=`Datos al ${tod()}`;
 else if(ST.sub==="rc")sub=`Cliente: ${RCS||"Todos"} · ${sub}`;
-doPrint(`Reporte_${nombre}_${ST.sub==="ca"||ST.sub==="inv"||ST.sub==="diag"?tod():ST.rD+"_a_"+ST.rH}`,pStyle("landscape")+pHead("Reporte: "+nombre,sub)+c.innerHTML);
+doPrint(`Reporte_${nombre}_${ST.sub==="ca"||ST.sub==="inv"||ST.sub==="diag"||ST.sub==="sxc"?tod():ST.rD+"_a_"+ST.rH}`,pStyle("landscape")+pHead("Reporte: "+nombre,sub)+c.innerHTML);
 }
 function printVenta(i){
 const v=DB.ventas[i];if(!v)return;
@@ -1840,6 +1840,30 @@ ${tbl(esC?"Por cliente":"Por proveedor",[[esC?"Cliente":"Proveedor"],["Movimient
 ${tbl("Por forma de pago",[["Forma"],["Movimientos",1],["Total",1]],filasF)}
 ${tbl("Detalle (del más reciente al más antiguo)",[["Fecha"],["Concepto"],[esC?"Cliente":"Proveedor"],["Doc."],["Forma"],["Monto",1],["Usuario"]],filasD,L.length?`<tr><td colspan="5"><b>TOTAL</b></td><td style="text-align:right;font-weight:700">${fmt(tot)}</td><td></td></tr>`:"")}
 ${bloqueSF}`;
+}
+
+/* ═══ REPORTE: SALDOS POR COBRAR (por cliente, imprimible) ═══ */
+const SXC={orden:"nombre",detalle:false};
+function rSXC(){
+const r2s=x=>Math.round(x*100)/100;
+const pend=DB.ventas.filter(v=>v.estado==="pendiente"&&(+v.saldo||0)>0.005);
+const m={};
+pend.forEach(v=>{const n=String(v.cliente||"").trim()||"(sin cliente)";const o=m[n]=m[n]||{n,docs:[],si:0,otras:0,tot:0,min:""};o.docs.push(v);const s=+v.saldo||0;o.tot+=s;if(v.esSaldoInicial)o.si+=s;else o.otras+=s;if(v.fecha&&(!o.min||v.fecha<o.min))o.min=v.fecha;});
+const L=Object.values(m);
+L.sort(SXC.orden==="saldo"?(a,b)=>b.tot-a.tot||a.n.localeCompare(b.n):(a,b)=>a.n.localeCompare(b.n));
+const tot=r2s(L.reduce((a,o)=>a+o.tot,0)),totSi=r2s(L.reduce((a,o)=>a+o.si,0)),totOt=r2s(L.reduce((a,o)=>a+o.otras,0));
+const nDoc=pend.length;
+const ruc=n=>{const c=DB.clientes.find(x=>x.nombre===n);return c&&c.ruc?c.ruc:"";};
+const filas=L.map(o=>{
+let f=`<tr><td><b>${h(o.n)}</b></td><td>${h(ruc(o.n))}</td><td style="text-align:right">${o.docs.length}</td><td style="text-align:right">${o.si?fmt(r2s(o.si)):""}</td><td style="text-align:right">${o.otras?fmt(r2s(o.otras)):""}</td><td style="text-align:right;font-weight:700">${fmt(r2s(o.tot))}</td><td>${h(o.min||"-")}</td></tr>`;
+if(SXC.detalle)f+=o.docs.slice().sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha))).map(v=>`<tr style="font-size:11px;color:${C.muted}"><td colspan="2" style="padding-left:22px">↳ #${String(v.id).slice(-6).toUpperCase()} · ${h(v.fecha||"-")}${v.esSaldoInicial?" · saldo inicial":""}${v.vence?" · vence "+h(v.vence):""}</td><td></td><td style="text-align:right">${v.esSaldoInicial?fmt(+v.saldo||0):""}</td><td style="text-align:right">${v.esSaldoInicial?"":fmt(+v.saldo||0)}</td><td style="text-align:right">${fmt(+v.saldo||0)}</td><td></td></tr>`).join("");
+return f;}).join("");
+return`<div class="h2">💳 Saldos por cobrar al ${h(tod())}</div>
+<div style="font-size:12px;color:${C.muted};margin-bottom:10px">Todas las facturas con saldo pendiente, tengan o no fecha de vencimiento. El total coincide con el de la pantalla Cuentas por Cobrar.</div>
+<div class="card" style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end"><div><label class="lbl">Ordenar por</label><select onchange="SXC.orden=this.value;R()"><option value="nombre"${SXC.orden==="nombre"?" selected":""}>Nombre del cliente</option><option value="saldo"${SXC.orden==="saldo"?" selected":""}>Mayor saldo</option></select></div><label class="lbl" style="display:flex;gap:6px;align-items:center;padding-bottom:6px"><input type="checkbox" ${SXC.detalle?"checked":""} onchange="SXC.detalle=this.checked;R()"> Mostrar el detalle de cada factura</label></div>
+<div class="grid2" style="margin-bottom:14px">${sc("Total por cobrar",fmt(tot),C.yel)}${sc("Clientes con saldo",L.length,C.acc)}${sc("Facturas pendientes",nDoc,C.blue)}${sc("De saldos iniciales",fmt(totSi),C.green)}</div>
+<div style="font-size:12px;margin-bottom:6px">Orden: ${SXC.orden==="saldo"?"mayor saldo":"nombre del cliente"}${SXC.detalle?" · con detalle por factura":""}</div>
+<div class="card"><div class="ov"><table><thead><tr><th>Cliente</th><th>Cédula / RUC</th><th style="text-align:right">Facturas</th><th style="text-align:right">Saldo inicial</th><th style="text-align:right">Otras facturas</th><th style="text-align:right">Total pendiente</th><th>Factura más antigua</th></tr></thead><tbody>${filas||`<tr><td colspan="7" class="empty">No hay saldos por cobrar</td></tr>`}${L.length?`<tr><td><b>TOTAL</b></td><td></td><td style="text-align:right;font-weight:700">${nDoc}</td><td style="text-align:right;font-weight:700">${fmt(totSi)}</td><td style="text-align:right;font-weight:700">${fmt(totOt)}</td><td style="text-align:right;font-weight:700">${fmt(tot)}</td><td></td></tr>`:""}</tbody></table></div></div>`;
 }
 </script>
 </body>
